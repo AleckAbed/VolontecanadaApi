@@ -1,0 +1,6 @@
+# Si le Document Root pointe sur ce dossier (parent de public/) au lieu de public/,
+# ce fichier envoie toutes les requêtes vers public/ pour que Laravel fonctionne.
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
