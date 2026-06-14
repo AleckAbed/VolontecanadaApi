@@ -52,6 +52,12 @@ return [
             'driver' => 'sanctum',
             'provider' => 'clients',
         ],
+
+        // Guard pour les collaborateurs (API)
+        'collaborator' => [
+            'driver' => 'sanctum',
+            'provider' => 'collaborators',
+        ],
     ],
 
     /*
@@ -87,6 +93,12 @@ return [
         'clients' => [
             'driver' => 'eloquent',
             'model' => App\Models\Client::class,
+        ],
+
+        // Provider pour les collaborateurs
+        'collaborators' => [
+            'driver' => 'eloquent',
+            'model' => App\Models\Collaborator::class,
         ],
     ],
 

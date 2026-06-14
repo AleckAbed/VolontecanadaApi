@@ -17,6 +17,8 @@ class FamilyMember extends Model
         'date_of_birth',
         'relationship',
         'nationality',
+        'country_of_residence',
+        'address',
         'passport_number',
         'phone',
         'email',

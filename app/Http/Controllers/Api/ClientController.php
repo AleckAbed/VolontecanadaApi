@@ -65,6 +65,7 @@ class ClientController extends Controller
             'phone' => 'nullable|string|max:50',
             'date_of_birth' => 'nullable|date',
             'nationality' => 'nullable|string|max:100',
+            'country_of_residence' => 'nullable|string|max:100',
             'passport_number' => 'nullable|string|max:100',
             'address' => 'nullable|string',
             'family_members' => 'nullable|array',
@@ -73,6 +74,8 @@ class ClientController extends Controller
             'family_members.*.relationship' => 'required_with:family_members|string|max:50',
             'family_members.*.date_of_birth' => 'nullable|date',
             'family_members.*.nationality' => 'nullable|string|max:100',
+            'family_members.*.country_of_residence' => 'nullable|string|max:100',
+            'family_members.*.address' => 'nullable|string',
             'family_members.*.passport_number' => 'nullable|string|max:100',
             'family_members.*.phone' => 'nullable|string|max:50',
             'family_members.*.email' => 'nullable|email',
@@ -88,7 +91,7 @@ class ClientController extends Controller
 
         $data = $request->only([
             'client_type', 'first_name', 'last_name', 'email', 'phone',
-            'date_of_birth', 'nationality', 'passport_number', 'address',
+            'date_of_birth', 'nationality', 'country_of_residence', 'passport_number', 'address',
         ]);
         $data['password'] = Hash::make($request->password);
         $data['client_type'] = $request->client_type;
@@ -103,6 +106,8 @@ class ClientController extends Controller
                     'relationship' => $fm['relationship'],
                     'date_of_birth' => $fm['date_of_birth'] ?? null,
                     'nationality' => $fm['nationality'] ?? null,
+                    'country_of_residence' => $fm['country_of_residence'] ?? null,
+                    'address' => $fm['address'] ?? null,
                     'passport_number' => $fm['passport_number'] ?? null,
                     'phone' => $fm['phone'] ?? null,
                     'email' => $fm['email'] ?? null,
@@ -148,6 +153,7 @@ class ClientController extends Controller
             'phone' => 'nullable|string|max:50',
             'date_of_birth' => 'nullable|date',
             'nationality' => 'nullable|string|max:100',
+            'country_of_residence' => 'nullable|string|max:100',
             'passport_number' => 'nullable|string|max:100',
             'address' => 'nullable|string',
             'is_active' => 'sometimes|boolean',
@@ -163,7 +169,7 @@ class ClientController extends Controller
 
         $data = $request->only([
             'client_type', 'first_name', 'last_name', 'email', 'phone',
-            'date_of_birth', 'nationality', 'passport_number', 'address', 'is_active',
+            'date_of_birth', 'nationality', 'country_of_residence', 'passport_number', 'address', 'is_active',
         ]);
         if ($request->filled('password')) {
             $data['password'] = Hash::make($request->password);
@@ -206,6 +212,8 @@ class ClientController extends Controller
             'relationship' => 'required|string|max:50',
             'date_of_birth' => 'nullable|date',
             'nationality' => 'nullable|string|max:100',
+            'country_of_residence' => 'nullable|string|max:100',
+            'address' => 'nullable|string',
             'passport_number' => 'nullable|string|max:100',
             'phone' => 'nullable|string|max:50',
             'email' => 'nullable|email',
@@ -221,7 +229,7 @@ class ClientController extends Controller
 
         $member = $client->familyMembers()->create($request->only([
             'first_name', 'last_name', 'relationship', 'date_of_birth',
-            'nationality', 'passport_number', 'phone', 'email',
+            'nationality', 'country_of_residence', 'address', 'passport_number', 'phone', 'email',
         ]));
 
         return response()->json([
@@ -244,6 +252,8 @@ class ClientController extends Controller
             'relationship' => 'sometimes|string|max:50',
             'date_of_birth' => 'nullable|date',
             'nationality' => 'nullable|string|max:100',
+            'country_of_residence' => 'nullable|string|max:100',
+            'address' => 'nullable|string',
             'passport_number' => 'nullable|string|max:100',
             'phone' => 'nullable|string|max:50',
             'email' => 'nullable|email',
@@ -259,7 +269,7 @@ class ClientController extends Controller
 
         $member->update($request->only([
             'first_name', 'last_name', 'relationship', 'date_of_birth',
-            'nationality', 'passport_number', 'phone', 'email',
+            'nationality', 'country_of_residence', 'address', 'passport_number', 'phone', 'email',
         ]));
 
         return response()->json([

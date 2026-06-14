@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Dossier extends Model
 {
@@ -14,11 +15,15 @@ class Dossier extends Model
         'client_id',
         'scope', // client | member | family
         'family_member_id',
+        'collaborator_id',
         'name',
+        'service_name',
         'status',
         'opened_at',
         'deadline_at',
         'notes',
+        'allow_collab_uploads',
+        'send_base_docs_to_client',
     ];
 
     protected function casts(): array
@@ -26,6 +31,8 @@ class Dossier extends Model
         return [
             'opened_at' => 'date',
             'deadline_at' => 'date',
+            'allow_collab_uploads' => 'boolean',
+            'send_base_docs_to_client' => 'boolean',
         ];
     }
 
@@ -37,6 +44,26 @@ class Dossier extends Model
     public function familyMember(): BelongsTo
     {
         return $this->belongsTo(FamilyMember::class);
+    }
+
+    public function collaborator(): BelongsTo
+    {
+        return $this->belongsTo(Collaborator::class);
+    }
+
+    public function documents(): HasMany
+    {
+        return $this->hasMany(DossierDocument::class)->orderBy('sort_order');
+    }
+
+    public function uploads(): HasMany
+    {
+        return $this->hasMany(DossierUpload::class)->orderBy('created_at');
+    }
+
+    public function invitations(): HasMany
+    {
+        return $this->hasMany(Invitation::class);
     }
 
     public static function scopeOptions(): array
@@ -55,6 +82,7 @@ class Dossier extends Model
             'soumis' => 'Soumis',
             'accorde' => 'Accordé',
             'refuse' => 'Refusé',
+            'rejete' => 'Rejeté',
             'annule' => 'Annulé',
         ];
     }

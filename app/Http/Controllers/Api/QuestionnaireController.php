@@ -278,6 +278,15 @@ class QuestionnaireController extends Controller
 
         $questionnaireRequest->refresh();
 
+        // Sync linked invitation_item to in_progress
+        if ($questionnaireRequest->invitation_item_id) {
+            $item = \App\Models\InvitationItem::find($questionnaireRequest->invitation_item_id);
+            if ($item && $item->status !== 'completed') {
+                $item->markStarted();
+                $item->invitation?->recomputeStatus();
+            }
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Données sauvegardées',
@@ -334,9 +343,21 @@ class QuestionnaireController extends Controller
             'completed_at' => now(),
         ]);
 
+        // If this questionnaire belongs to an invitation, mark the invitation item completed
+        if ($questionnaireRequest->invitation_item_id) {
+            $item = \App\Models\InvitationItem::find($questionnaireRequest->invitation_item_id);
+            if ($item) {
+                $item->markCompleted();
+                $item->invitation?->recomputeStatus();
+            }
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Formulaire soumis avec succès',
+            'invitation_code' => $questionnaireRequest->invitation_item_id
+                ? \App\Models\InvitationItem::find($questionnaireRequest->invitation_item_id)?->invitation?->unique_code
+                : null,
         ], 200);
     }
 

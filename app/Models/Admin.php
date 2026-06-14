@@ -22,6 +22,8 @@ class Admin extends Authenticatable
         'password',
         'role', // super_admin, admin, manager, etc.
         'is_active',
+        'lock_screen_backgrounds',
+        'lock_screen_interval',
     ];
 
     /**
@@ -45,7 +47,15 @@ class Admin extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_active' => 'boolean',
+            'lock_screen_backgrounds' => 'array',
+            'lock_screen_interval' => 'integer',
         ];
+    }
+
+    public function followedSources(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(NewsSource::class, 'news_source_followers', 'admin_id', 'source_id')
+            ->withTimestamps();
     }
 }
 

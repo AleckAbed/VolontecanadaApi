@@ -29,6 +29,10 @@ return [
         'http://192.168.2.105:3001',
         'https://app.volontecanada.ca',
         'https://volontecanadaplateforme.vercel.app',
+            // Tunnels
+        'https://74b3721d5eaa05.lhr.life',        // localhost.run front
+        'https://XXXXXXXXXXXXXXX.lhr.life',        // localhost.run API (remplace par ta vraie URL)
+        'https://paramount-avoid-radio.ngrok-free.dev', // ngrok
     ],
 
     // Patterns : réseau local + en prod vous pouvez ajouter votre domaine HTTPS

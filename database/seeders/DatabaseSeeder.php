@@ -19,6 +19,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             AdminSeeder::class,
             ClientSeeder::class,
+            CategoryAndFormTypeSeeder::class,
         ]);
 
         // User::factory(10)->create();

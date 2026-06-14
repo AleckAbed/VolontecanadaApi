@@ -27,6 +27,7 @@ class QuestionnaireRequest extends Model
         'sent_by',
         'email_sent',
         'email_error',
+        'invitation_item_id',
     ];
 
     protected $casts = [

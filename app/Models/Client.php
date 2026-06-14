@@ -24,6 +24,7 @@ class Client extends Authenticatable
         'phone',
         'date_of_birth',
         'nationality',
+        'country_of_residence',
         'passport_number',
         'address',
         'is_active',

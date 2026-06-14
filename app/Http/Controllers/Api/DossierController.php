@@ -3,9 +3,16 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Mail\CollaboratorDossierAssignedMail;
+use App\Models\Collaborator;
 use App\Models\Dossier;
 use App\Models\Client;
+use App\Models\DocumentTemplate;
+use App\Models\DossierDocument;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 
 class DossierController extends Controller
@@ -15,7 +22,11 @@ class DossierController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Dossier::with(['client:id,first_name,last_name,email,client_type', 'familyMember:id,first_name,last_name,relationship'])
+        $query = Dossier::with([
+                'client:id,first_name,last_name,email,client_type',
+                'familyMember:id,first_name,last_name,relationship',
+                'collaborator:id,first_name,last_name,email',
+            ])
             ->orderBy('created_at', 'desc');
 
         if ($request->filled('client_id')) {
@@ -43,7 +54,11 @@ class DossierController extends Controller
             'client_id' => 'required|exists:clients,id',
             'scope' => 'required|in:client,member,family',
             'family_member_id' => 'required_if:scope,member|nullable|exists:family_members,id',
+            'collaborator_id' => 'nullable|exists:collaborators,id',
+            'allow_collab_uploads' => 'nullable|boolean',
+            'send_base_docs_to_client' => 'nullable|boolean',
             'name' => 'required|string|max:255',
+            'service_name' => 'nullable|string|max:255',
             'status' => 'nullable|string|max:50',
             'opened_at' => 'nullable|date',
             'deadline_at' => 'nullable|date',
@@ -82,14 +97,28 @@ class DossierController extends Controller
         }
 
         $data = $request->only([
-            'client_id', 'scope', 'family_member_id', 'name', 'status',
+            'client_id', 'scope', 'family_member_id', 'collaborator_id', 'name', 'service_name', 'status',
             'opened_at', 'deadline_at', 'notes',
         ]);
         $data['family_member_id'] = $request->scope === 'member' ? $request->family_member_id : null;
         $data['status'] = $data['status'] ?? 'en_cours';
+        $data['allow_collab_uploads'] = $request->boolean('allow_collab_uploads', true);
+        $data['send_base_docs_to_client'] = $request->boolean('send_base_docs_to_client', false);
 
         $dossier = Dossier::create($data);
-        $dossier->load(['client', 'familyMember']);
+
+        // Auto-attache les modèles de documents rattachés au service choisi
+        // comme documents de base du dossier (snapshot du PDF).
+        if (!empty($data['service_name'])) {
+            $this->attachServiceTemplates($dossier, $data['service_name']);
+        }
+
+        // Notifie le collaborateur s'il a été assigné dès la création
+        if (!empty($data['collaborator_id'])) {
+            $this->notifyCollaboratorAssigned($dossier, $data['collaborator_id']);
+        }
+
+        $dossier->load(['client', 'familyMember', 'collaborator']);
 
         return response()->json([
             'success' => true,
@@ -99,11 +128,68 @@ class DossierController extends Controller
     }
 
     /**
+     * Envoie un email au collaborateur pour l'avertir qu'un dossier vient de lui être assigné.
+     * Non bloquant : si le mail échoue, le dossier reste créé/mis à jour.
+     */
+    private function notifyCollaboratorAssigned(Dossier $dossier, int $collaboratorId): void
+    {
+        try {
+            $collab = Collaborator::find($collaboratorId);
+            if (!$collab || !$collab->is_active || !$collab->email) return;
+            $dossier->loadMissing('client');
+            Mail::to($collab->email)->send(new CollaboratorDossierAssignedMail($collab, $dossier));
+        } catch (\Throwable $e) {
+            Log::warning('Échec notification collaborateur', [
+                'dossier_id' => $dossier->id,
+                'collab_id' => $collaboratorId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Copie chaque DocumentTemplate associé au service en un DossierDocument
+     * (snapshot — une modif ultérieure du modèle ne propage pas).
+     */
+    private function attachServiceTemplates(Dossier $dossier, string $serviceName): void
+    {
+        $templates = DocumentTemplate::where('is_active', true)
+            ->where('service_name', $serviceName)
+            ->get();
+
+        foreach ($templates as $tpl) {
+            if (!$tpl->pdf_path || !Storage::disk('local')->exists($tpl->pdf_path)) {
+                continue;
+            }
+            $extension = pathinfo($tpl->pdf_path, PATHINFO_EXTENSION) ?: 'pdf';
+            $newPath = "dossier-documents/{$dossier->id}/" . uniqid('auto_') . '.' . $extension;
+            Storage::disk('local')->copy($tpl->pdf_path, $newPath);
+
+            DossierDocument::create([
+                'dossier_id' => $dossier->id,
+                'document_template_id' => $tpl->id,
+                'name' => $tpl->name,
+                'description' => $tpl->description,
+                'template_path' => $newPath,
+                'status' => 'in_progress',
+                'sort_order' => 0,
+            ]);
+        }
+    }
+
+    /**
      * Détail d'un dossier.
      */
     public function show(int $id)
     {
-        $dossier = Dossier::with(['client', 'familyMember'])->findOrFail($id);
+        $dossier = Dossier::with([
+            'client',
+            'familyMember',
+            'collaborator',
+            'documents',
+            'uploads',
+            'invitations:id,dossier_id,email,status,sent_at,expires_at,completed_at,unique_code',
+        ])->findOrFail($id);
 
         return response()->json([
             'success' => true,
@@ -121,7 +207,11 @@ class DossierController extends Controller
         $validator = Validator::make($request->all(), [
             'scope' => 'sometimes|in:client,member,family',
             'family_member_id' => 'nullable|exists:family_members,id',
+            'collaborator_id' => 'nullable|exists:collaborators,id',
+            'allow_collab_uploads' => 'nullable|boolean',
+            'send_base_docs_to_client' => 'nullable|boolean',
             'name' => 'sometimes|string|max:255',
+            'service_name' => 'nullable|string|max:255',
             'status' => 'sometimes|string|max:50',
             'opened_at' => 'nullable|date',
             'deadline_at' => 'nullable|date',
@@ -136,12 +226,30 @@ class DossierController extends Controller
             ], 422);
         }
 
-        $data = $request->only(['scope', 'family_member_id', 'name', 'status', 'opened_at', 'deadline_at', 'notes']);
+        $data = $request->only([
+            'scope', 'family_member_id', 'collaborator_id', 'name', 'service_name', 'status',
+            'opened_at', 'deadline_at', 'notes',
+        ]);
         if (isset($data['scope']) && $data['scope'] !== 'member') {
             $data['family_member_id'] = null;
         }
+        if ($request->has('allow_collab_uploads')) {
+            $data['allow_collab_uploads'] = $request->boolean('allow_collab_uploads');
+        }
+        if ($request->has('send_base_docs_to_client')) {
+            $data['send_base_docs_to_client'] = $request->boolean('send_base_docs_to_client');
+        }
+
+        $previousCollabId = $dossier->collaborator_id;
         $dossier->update($data);
-        $dossier->load(['client', 'familyMember']);
+
+        // Notifie si un (nouveau) collab a été assigné lors de cette mise à jour.
+        $newCollabId = $dossier->collaborator_id;
+        if ($newCollabId && (int) $newCollabId !== (int) $previousCollabId) {
+            $this->notifyCollaboratorAssigned($dossier, (int) $newCollabId);
+        }
+
+        $dossier->load(['client', 'familyMember', 'collaborator']);
 
         return response()->json([
             'success' => true,
