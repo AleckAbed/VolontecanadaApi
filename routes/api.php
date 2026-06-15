@@ -238,6 +238,9 @@ Route::prefix('collaborator')->group(function () {
         // Lecture des PDF remplis du client (read-only)
         Route::get('/dossiers/{id}/invitations/{invitationId}/items/{itemId}/pdf', [CollaboratorWorkspaceController::class, 'getInvitationItemPdf']);
 
+        // Fichiers téléversés librement par le client lors de l'invitation
+        Route::get('/dossiers/{id}/invitations/{invitationId}/uploads/{uploadId}', [CollaboratorWorkspaceController::class, 'getInvitationClientUpload']);
+
         // Détail d'un item d'invitation (lecture seule, pour le viewer de formulaire)
         Route::get('/invitation-items/{itemId}', [CollaboratorWorkspaceController::class, 'getInvitationItem']);
     });

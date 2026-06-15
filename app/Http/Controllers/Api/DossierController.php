@@ -109,8 +109,15 @@ class DossierController extends Controller
 
         // Auto-attache les modèles de documents rattachés au service choisi
         // comme documents de base du dossier (snapshot du PDF).
+        Log::info('Dossier créé — service_name', [
+            'dossier_id' => $dossier->id,
+            'service_name' => $data['service_name'] ?? null,
+            'raw_request_service_name' => $request->input('service_name'),
+        ]);
         if (!empty($data['service_name'])) {
             $this->attachServiceTemplates($dossier, $data['service_name']);
+        } else {
+            Log::warning('Pas de service_name → pas d\'auto-attach', ['dossier_id' => $dossier->id]);
         }
 
         // Notifie le collaborateur s'il a été assigné dès la création
@@ -153,11 +160,38 @@ class DossierController extends Controller
      */
     private function attachServiceTemplates(Dossier $dossier, string $serviceName): void
     {
+        // Filtre par localisation du client (in_canada / outside_canada).
+        // Si le client n'a pas renseigné sa position, on accepte 'any' uniquement.
+        $dossier->loadMissing('client');
+        $clientInCanada = $dossier->client?->in_canada;
+        $allowedLocations = ['any'];
+        if ($clientInCanada === true) {
+            $allowedLocations[] = 'in_canada';
+        } elseif ($clientInCanada === false) {
+            $allowedLocations[] = 'outside_canada';
+        }
+
         $templates = DocumentTemplate::where('is_active', true)
             ->where('service_name', $serviceName)
+            ->whereIn('target_location', $allowedLocations)
             ->get();
 
+        // Templates déjà rattachés (par leur template_id) — évite les doublons
+        // lors d'un re-create ou d'une édition qui change le service.
+        $alreadyAttached = $dossier->documents()
+            ->whereNotNull('document_template_id')
+            ->pluck('document_template_id')
+            ->all();
+
+        Log::info('Auto-attach résultats', [
+            'dossier_id' => $dossier->id,
+            'service_name' => $serviceName,
+            'templates_found' => $templates->count(),
+            'already_attached' => $alreadyAttached,
+        ]);
+
         foreach ($templates as $tpl) {
+            if (in_array($tpl->id, $alreadyAttached, true)) continue;
             if (!$tpl->pdf_path || !Storage::disk('local')->exists($tpl->pdf_path)) {
                 continue;
             }
@@ -241,12 +275,18 @@ class DossierController extends Controller
         }
 
         $previousCollabId = $dossier->collaborator_id;
+        $previousServiceName = $dossier->service_name;
         $dossier->update($data);
 
         // Notifie si un (nouveau) collab a été assigné lors de cette mise à jour.
         $newCollabId = $dossier->collaborator_id;
         if ($newCollabId && (int) $newCollabId !== (int) $previousCollabId) {
             $this->notifyCollaboratorAssigned($dossier, (int) $newCollabId);
+        }
+
+        // Auto-attache les modèles du nouveau service si le service vient d'être défini/changé.
+        if (!empty($dossier->service_name) && $dossier->service_name !== $previousServiceName) {
+            $this->attachServiceTemplates($dossier, $dossier->service_name);
         }
 
         $dossier->load(['client', 'familyMember', 'collaborator']);

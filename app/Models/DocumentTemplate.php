@@ -15,6 +15,7 @@ class DocumentTemplate extends Model
         'name',
         'description',
         'service_name',
+        'target_location',
         'category',
         'category_id',
         'pdf_path',
@@ -22,6 +23,15 @@ class DocumentTemplate extends Model
         'created_by',
         'is_active',
     ];
+
+    public static function targetLocationOptions(): array
+    {
+        return [
+            'any' => 'Tous (Canada et hors Canada)',
+            'in_canada' => 'Au Canada uniquement',
+            'outside_canada' => 'Hors Canada uniquement',
+        ];
+    }
 
     protected $casts = [
         'template_json' => 'array',

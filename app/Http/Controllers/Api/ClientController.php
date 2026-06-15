@@ -66,6 +66,7 @@ class ClientController extends Controller
             'date_of_birth' => 'nullable|date',
             'nationality' => 'nullable|string|max:100',
             'country_of_residence' => 'nullable|string|max:100',
+            'in_canada' => 'nullable|boolean',
             'passport_number' => 'nullable|string|max:100',
             'address' => 'nullable|string',
             'family_members' => 'nullable|array',
@@ -95,6 +96,9 @@ class ClientController extends Controller
         ]);
         $data['password'] = Hash::make($request->password);
         $data['client_type'] = $request->client_type;
+        if ($request->has('in_canada')) {
+            $data['in_canada'] = $request->boolean('in_canada');
+        }
 
         $client = Client::create($data);
 
@@ -154,6 +158,7 @@ class ClientController extends Controller
             'date_of_birth' => 'nullable|date',
             'nationality' => 'nullable|string|max:100',
             'country_of_residence' => 'nullable|string|max:100',
+            'in_canada' => 'nullable|boolean',
             'passport_number' => 'nullable|string|max:100',
             'address' => 'nullable|string',
             'is_active' => 'sometimes|boolean',
@@ -173,6 +178,9 @@ class ClientController extends Controller
         ]);
         if ($request->filled('password')) {
             $data['password'] = Hash::make($request->password);
+        }
+        if ($request->has('in_canada')) {
+            $data['in_canada'] = $request->boolean('in_canada');
         }
         $client->update($data);
 

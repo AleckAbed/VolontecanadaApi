@@ -83,7 +83,11 @@ class CollaboratorWorkspaceController extends Controller
     public function showDossier(Request $request, $dossierId)
     {
         $dossier = $this->authorizeDossier($request, (int) $dossierId);
-        $dossier->load(['documents', 'uploads', 'invitations.items.formType', 'invitations.items.documentTemplate']);
+        $dossier->load([
+            'documents', 'uploads',
+            'invitations.items.formType', 'invitations.items.documentTemplate',
+            'invitations.uploads',
+        ]);
 
         $invitations = $dossier->invitations->map(function ($inv) {
             return [
@@ -102,6 +106,15 @@ class CollaboratorWorkspaceController extends Controller
                     'has_filled_pdf' => (bool) $it->pdf_filled_path,
                     'last_saved_at' => $it->last_saved_at?->format('Y-m-d H:i'),
                     'completed_at' => $it->completed_at?->format('Y-m-d H:i'),
+                ]),
+                // Fichiers libres téléversés par le client lors de cette invitation
+                'client_uploads' => $inv->uploads->map(fn($u) => [
+                    'id' => $u->id,
+                    'label' => $u->label,
+                    'original_filename' => $u->original_filename,
+                    'mime_type' => $u->mime_type,
+                    'size' => $u->size,
+                    'created_at' => $u->created_at?->format('Y-m-d H:i'),
                 ]),
             ];
         });
@@ -332,6 +345,26 @@ class CollaboratorWorkspaceController extends Controller
                 'completed_at' => $item->completed_at?->format('Y-m-d H:i'),
             ],
         ]);
+    }
+
+    /**
+     * Sert un fichier librement téléversé par le CLIENT lors d'une invitation
+     * (lecture seule pour le collaborateur assigné au dossier).
+     */
+    public function getInvitationClientUpload(Request $request, $dossierId, $invitationId, $uploadId)
+    {
+        $dossier = $this->authorizeDossier($request, (int) $dossierId);
+        $invitation = \App\Models\Invitation::where('dossier_id', $dossier->id)->findOrFail($invitationId);
+        $upload = \App\Models\InvitationUpload::where('invitation_id', $invitation->id)->findOrFail($uploadId);
+
+        if (!$upload->path || !Storage::disk('local')->exists($upload->path)) {
+            return response()->json(['success' => false, 'message' => 'Fichier introuvable'], 404);
+        }
+        return response()->download(
+            Storage::disk('local')->path($upload->path),
+            $upload->original_filename,
+            ['Content-Type' => $upload->mime_type ?: 'application/octet-stream']
+        );
     }
 
     public function getInvitationItemPdf(Request $request, $dossierId, $invitationId, $itemId)

@@ -25,6 +25,7 @@ class Client extends Authenticatable
         'date_of_birth',
         'nationality',
         'country_of_residence',
+        'in_canada',
         'passport_number',
         'address',
         'is_active',
@@ -53,6 +54,7 @@ class Client extends Authenticatable
             'password' => 'hashed',
             'date_of_birth' => 'date',
             'is_active' => 'boolean',
+            'in_canada' => 'boolean',
         ];
     }
 
