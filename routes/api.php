@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\InvitationController;
 use App\Http\Controllers\Api\NewsArticleController;
 use App\Http\Controllers\Api\NewsSourceController;
 use App\Http\Controllers\Api\QuestionnaireController;
+use App\Http\Controllers\Api\StatisticsController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -62,6 +63,9 @@ Route::prefix('admin')->group(function () {
         Route::get('/clients', [QuestionnaireController::class, 'getClients']);
 
         // Module Client (CRUD clients, membres famille, dossiers)
+        // Statistiques cabinet (dashboard + analytics)
+        Route::get('/statistics/overview', [StatisticsController::class, 'overview']);
+
         Route::get('/module-clients/options', [ClientController::class, 'options']);
         Route::apiResource('module-clients', ClientController::class)->parameters(['module-client' => 'id']);
         Route::post('module-clients/{id}/family-members', [ClientController::class, 'addFamilyMember']);
