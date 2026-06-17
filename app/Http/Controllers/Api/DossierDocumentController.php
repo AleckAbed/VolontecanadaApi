@@ -121,14 +121,82 @@ class DossierDocumentController extends Controller
         return $this->servePdfFile($doc->template_path, $doc->name . '.pdf');
     }
 
-    /** Sert le PDF rempli (admin). */
-    public function serveFilled($id)
+    /**
+     * Sert le PDF rempli (admin). Une seule version partagée par tous les éditeurs.
+     */
+    public function serveFilled(Request $request, $id)
     {
         $doc = DossierDocument::findOrFail($id);
-        if (!$doc->filled_pdf_path) {
+        if (!$doc->filled_pdf_path || !Storage::disk('local')->exists($doc->filled_pdf_path)) {
             return response()->json(['success' => false, 'message' => 'Aucun PDF rempli disponible'], 404);
         }
         return $this->servePdfFile($doc->filled_pdf_path, $doc->name . ' (rempli).pdf');
+    }
+
+    /**
+     * Sert le PDF à éditer par l'admin (rempli si dispo, sinon template).
+     * Le viewer XFA ouvre ce flux en mode édition.
+     */
+    public function serveForEdit($id)
+    {
+        $doc = DossierDocument::findOrFail($id);
+        $path = $doc->filled_pdf_path && Storage::disk('local')->exists($doc->filled_pdf_path)
+            ? $doc->filled_pdf_path
+            : $doc->template_path;
+        if (!$path || !Storage::disk('local')->exists($path)) {
+            return response()->json(['success' => false, 'message' => 'Fichier introuvable'], 404);
+        }
+        return $this->servePdfFile($path, $doc->name . '.pdf');
+    }
+
+    /**
+     * Sauvegarde du PDF par l'ADMIN. Écrit dans le même filled_pdf_path
+     * partagé avec collab/client. Marque filled_by='admin'.
+     */
+    public function saveAsAdmin(Request $request, $id)
+    {
+        $doc = DossierDocument::findOrFail($id);
+        $request->validate([
+            'pdf_base64' => 'required|string',
+            'form_data' => 'nullable|array',
+        ]);
+        $pdfContent = base64_decode($request->input('pdf_base64'), true);
+        if ($pdfContent === false) {
+            return response()->json(['success' => false, 'message' => 'PDF invalide'], 422);
+        }
+
+        // Supprime l'ancien fichier rempli si on a un autre chemin précédent
+        if ($doc->filled_pdf_path && Storage::disk('local')->exists($doc->filled_pdf_path)) {
+            Storage::disk('local')->delete($doc->filled_pdf_path);
+        }
+        $filename = "dossier-documents/{$doc->dossier_id}/filled-{$doc->id}-" . time() . '.pdf';
+        Storage::disk('local')->put($filename, $pdfContent);
+
+        $doc->filled_pdf_path = $filename;
+        $doc->form_data = $request->input('form_data');
+        $doc->filled_by = 'admin';
+        $doc->last_saved_at = now();
+        $doc->save();
+
+        return response()->json(['success' => true, 'data' => $this->format($doc->fresh())]);
+    }
+
+    public function markComplete($id)
+    {
+        $doc = DossierDocument::findOrFail($id);
+        $doc->status = 'completed';
+        $doc->completed_at = $doc->completed_at ?: now();
+        $doc->save();
+        return response()->json(['success' => true]);
+    }
+
+    public function markInProgress($id)
+    {
+        $doc = DossierDocument::findOrFail($id);
+        $doc->status = 'in_progress';
+        $doc->completed_at = null;
+        $doc->save();
+        return response()->json(['success' => true]);
     }
 
     // ─── Helpers ────────────────────────────────────────────────────────────

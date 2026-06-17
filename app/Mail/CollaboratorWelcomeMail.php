@@ -26,12 +26,14 @@ class CollaboratorWelcomeMail extends Mailable
     {
         $baseUrl = rtrim(config('app.frontend_url'), '/');
         $activationUrl = $baseUrl . '/collab/activate?token=' . urlencode($this->token);
+        $loginUrl = $baseUrl . '/collab/login';
 
         return new Content(
             view: 'emails.collaborator-welcome',
             with: [
                 'collaborator' => $this->collaborator,
                 'activationUrl' => $activationUrl,
+                'loginUrl' => $loginUrl,
             ],
         );
     }

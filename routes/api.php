@@ -151,6 +151,10 @@ Route::prefix('admin')->group(function () {
         Route::delete('/dossier-documents/{id}', [DossierDocumentController::class, 'destroy']);
         Route::get('/dossier-documents/{id}/template', [DossierDocumentController::class, 'serveTemplate']);
         Route::get('/dossier-documents/{id}/filled', [DossierDocumentController::class, 'serveFilled']);
+        Route::get('/dossier-documents/{id}/edit-pdf', [DossierDocumentController::class, 'serveForEdit']);
+        Route::post('/dossier-documents/{id}/save-as-admin', [DossierDocumentController::class, 'saveAsAdmin']);
+        Route::post('/dossier-documents/{id}/mark-complete', [DossierDocumentController::class, 'markComplete']);
+        Route::post('/dossier-documents/{id}/mark-in-progress', [DossierDocumentController::class, 'markInProgress']);
 
         // News — articles
         Route::get('/news/articles', [NewsArticleController::class, 'index']);

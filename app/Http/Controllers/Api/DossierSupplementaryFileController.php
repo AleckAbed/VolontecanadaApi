@@ -99,7 +99,24 @@ class DossierSupplementaryFileController extends Controller
                     ->where('id', $id)
                     ->first();
                 if (!$doc) continue;
-                $path = $filled && $doc->filled_pdf_path ? $doc->filled_pdf_path : $doc->template_path;
+                // Si on demande la version remplie : priorité collab > client > rien
+                if ($filled) {
+                    $path = null;
+                    if ($doc->filled_pdf_path && Storage::disk('local')->exists($doc->filled_pdf_path)) {
+                        $path = $doc->filled_pdf_path;
+                    } elseif ($doc->document_template_id) {
+                        $clientFill = InvitationItem::whereHas('invitation', fn($q) => $q->where('dossier_id', $dossier->id))
+                            ->where('document_template_id', $doc->document_template_id)
+                            ->whereNotNull('pdf_filled_path')
+                            ->orderByDesc('last_saved_at')
+                            ->first();
+                        if ($clientFill && Storage::disk('local')->exists($clientFill->pdf_filled_path)) {
+                            $path = $clientFill->pdf_filled_path;
+                        }
+                    }
+                } else {
+                    $path = $doc->template_path;
+                }
                 if (!$path || !Storage::disk('local')->exists($path)) continue;
                 $folder = $kind === 'ircc' ? 'IRCC' : 'Provincial-FO';
                 $extension = pathinfo($path, PATHINFO_EXTENSION) ?: 'pdf';
@@ -144,14 +161,14 @@ class DossierSupplementaryFileController extends Controller
             'id' => $d->id,
             'kind' => 'ircc',
             'name' => $d->name,
-            'has_filled' => (bool) $d->filled_pdf_path,
+            'has_filled' => $d->has_filled_pdf, // accesseur : couvre collab + client
             'status' => $d->status,
         ]);
         $fo = $dossier->documents->where('doc_type', 'fo')->values()->map(fn($d) => [
             'id' => $d->id,
             'kind' => 'fo',
             'name' => $d->name,
-            'has_filled' => (bool) $d->filled_pdf_path,
+            'has_filled' => $d->has_filled_pdf,
             'status' => $d->status,
         ]);
         $supp = $dossier->supplementaryFiles->map(fn($f) => [

@@ -241,6 +241,7 @@ class CollaboratorWorkspaceController extends Controller
 
         $doc->filled_pdf_path = $filename;
         $doc->form_data = $request->input('form_data');
+        $doc->filled_by = 'collab';
         $doc->last_saved_at = now();
         if ($doc->status === 'completed') {
             // Si modifié après completion, on repasse en cours pour signaler

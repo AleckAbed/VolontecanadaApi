@@ -58,6 +58,19 @@
         <div class="warning">
             <strong>⏱ Important :</strong> ce lien d'activation expire dans <strong>7 jours</strong>. Si vous n'avez pas activé votre compte avant, contactez votre administrateur pour en recevoir un nouveau.
         </div>
+
+        <div class="info-card" style="background:#f0fdf4;border-left-color:#10b981;margin-top:24px">
+            <strong style="color:#047857">💡 Pour vos prochaines connexions :</strong>
+            <p style="margin:8px 0 4px;font-size:13px;line-height:1.5">
+                Une fois votre compte activé, accédez à votre espace collaborateur à tout moment via :
+            </p>
+            <p style="margin:8px 0 0;word-break:break-all">
+                <a href="{{ $loginUrl }}" style="color:#047857;font-weight:bold;text-decoration:none">{{ $loginUrl }}</a>
+            </p>
+            <p style="margin:8px 0 0;font-size:12px;color:#475569">
+                Ajoutez ce lien à vos favoris pour un accès rapide.
+            </p>
+        </div>
     </div>
 
     <div class="footer">

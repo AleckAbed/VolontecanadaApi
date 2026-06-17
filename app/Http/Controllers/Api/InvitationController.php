@@ -468,6 +468,31 @@ class InvitationController extends Controller
             $path = "invitation-items/{$invitation->unique_code}/item-{$item->id}.pdf";
             Storage::disk('local')->put($path, $bytes);
             $item->pdf_filled_path = $path;
+
+            // Propagation vers le DossierDocument partagé : si l'invitation est liée
+            // à un dossier et que ce modèle de document a été instancié dans ce dossier,
+            // on sauvegarde aussi dans le filled_pdf_path du DossierDocument pour que
+            // collaborateur et admin voient la même version.
+            if ($invitation->dossier_id && $item->document_template_id) {
+                $dossierDoc = \App\Models\DossierDocument::where('dossier_id', $invitation->dossier_id)
+                    ->where('document_template_id', $item->document_template_id)
+                    ->first();
+                if ($dossierDoc) {
+                    // Supprime l'ancien fichier rempli si différent
+                    if ($dossierDoc->filled_pdf_path
+                        && $dossierDoc->filled_pdf_path !== $path
+                        && Storage::disk('local')->exists($dossierDoc->filled_pdf_path)) {
+                        Storage::disk('local')->delete($dossierDoc->filled_pdf_path);
+                    }
+                    $sharedPath = "dossier-documents/{$dossierDoc->dossier_id}/filled-{$dossierDoc->id}-" . time() . '.pdf';
+                    Storage::disk('local')->put($sharedPath, $bytes);
+                    $dossierDoc->filled_pdf_path = $sharedPath;
+                    $dossierDoc->filled_by = 'client';
+                    $dossierDoc->last_saved_at = now();
+                    // Pas de changement automatique de status (le client n'est pas censé marquer terminé pour le collab)
+                    $dossierDoc->save();
+                }
+            }
         }
 
         $item->markStarted();

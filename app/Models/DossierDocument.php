@@ -20,6 +20,7 @@ class DossierDocument extends Model
         'schema',
         'form_data',
         'filled_pdf_path',
+        'filled_by', // admin | collab | client
         'status',
         'last_saved_at',
         'completed_at',
@@ -34,9 +35,16 @@ class DossierDocument extends Model
         'sort_order' => 'integer',
     ];
 
+    protected $appends = ['has_filled_pdf'];
+
     public function dossier(): BelongsTo
     {
         return $this->belongsTo(Dossier::class);
+    }
+
+    public function getHasFilledPdfAttribute(): bool
+    {
+        return (bool) $this->filled_pdf_path;
     }
 
     public function markCompleted(): void
