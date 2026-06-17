@@ -43,6 +43,7 @@ class DocumentController extends Controller
                 'description' => $t->description,
                 'service_name' => $t->service_name,
                 'target_location' => $t->target_location,
+                'doc_type' => $t->doc_type,
                 'category' => $t->category,
                 'category_id' => $t->category_id,
                 'category_label' => $t->categoryRel?->name
@@ -62,6 +63,7 @@ class DocumentController extends Controller
             'description' => 'nullable|string',
             'service_name' => 'nullable|string|max:255',
             'target_location' => 'nullable|in:any,in_canada,outside_canada',
+            'doc_type' => 'nullable|in:ircc,fo',
             'category' => 'nullable|in:ircc,cabinet,contrat,autre',
             'is_active' => 'nullable|boolean',
             'pdf' => 'required|file|mimes:pdf|max:20480',
@@ -84,6 +86,7 @@ class DocumentController extends Controller
             'description' => $request->description,
             'service_name' => $request->input('service_name'),
             'target_location' => $request->input('target_location', 'any'),
+            'doc_type' => $request->input('doc_type', 'ircc'),
             'category' => $request->input('category', 'autre'),
             'is_active' => $request->boolean('is_active', true),
             'pdf_path' => $path,
@@ -111,6 +114,7 @@ class DocumentController extends Controller
             'description' => 'nullable|string',
             'service_name' => 'nullable|string|max:255',
             'target_location' => 'nullable|in:any,in_canada,outside_canada',
+            'doc_type' => 'nullable|in:ircc,fo',
             'is_active' => 'nullable|boolean',
         ]);
 
@@ -122,7 +126,7 @@ class DocumentController extends Controller
             ], 422);
         }
 
-        $template->fill($request->only(['name', 'description', 'service_name', 'target_location']));
+        $template->fill($request->only(['name', 'description', 'service_name', 'target_location', 'doc_type']));
         if ($request->has('is_active')) {
             $template->is_active = $request->boolean('is_active');
         }

@@ -13,6 +13,7 @@ class DossierDocument extends Model
     protected $fillable = [
         'dossier_id',
         'document_template_id',
+        'doc_type', // ircc | fo
         'name',
         'description',
         'template_path',

@@ -29,6 +29,8 @@ class CollaboratorWorkspaceController extends Controller
         $dossier = Dossier::with(['client', 'familyMember'])->findOrFail($dossierId);
         // Comparaison souple : Eloquent peut renvoyer collaborator_id en string selon le driver.
         abort_unless((int) $dossier->collaborator_id === (int) $me->id, 403, 'Accès refusé à ce dossier');
+        // Accès révoqué temporairement par l'admin (sans suppression du compte)
+        abort_if($dossier->collab_access_revoked, 403, 'L\'accès à ce dossier a été suspendu par l\'administrateur.');
         return $dossier;
     }
 
@@ -38,6 +40,7 @@ class CollaboratorWorkspaceController extends Controller
         $me = $this->me($request);
         $dossiers = Dossier::with(['client:id,first_name,last_name,email', 'familyMember:id,first_name,last_name,relationship'])
             ->where('collaborator_id', $me->id)
+            ->where('collab_access_revoked', false)
             ->orderByDesc('created_at')
             ->get();
 
@@ -84,7 +87,7 @@ class CollaboratorWorkspaceController extends Controller
     {
         $dossier = $this->authorizeDossier($request, (int) $dossierId);
         $dossier->load([
-            'documents', 'uploads',
+            'documents', 'uploads', 'supplementaryFiles',
             'invitations.items.formType', 'invitations.items.documentTemplate',
             'invitations.uploads',
         ]);
@@ -142,6 +145,7 @@ class CollaboratorWorkspaceController extends Controller
                 ] : null,
                 'documents' => $dossier->documents->map(fn($d) => [
                     'id' => $d->id,
+                    'doc_type' => $d->doc_type ?: 'ircc',
                     'name' => $d->name,
                     'description' => $d->description,
                     'status' => $d->status,
@@ -149,6 +153,14 @@ class CollaboratorWorkspaceController extends Controller
                     'form_data' => $d->form_data,
                     'last_saved_at' => $d->last_saved_at?->format('Y-m-d H:i'),
                     'completed_at' => $d->completed_at?->format('Y-m-d H:i'),
+                ]),
+                'supplementary_files' => $dossier->supplementaryFiles->map(fn($f) => [
+                    'id' => $f->id,
+                    'label' => $f->label,
+                    'original_filename' => $f->original_filename,
+                    'mime_type' => $f->mime_type,
+                    'size' => $f->size,
+                    'created_at' => $f->created_at?->format('Y-m-d H:i'),
                 ]),
                 'uploads' => $dossier->uploads->map(fn($u) => [
                     'id' => $u->id,
@@ -365,6 +377,24 @@ class CollaboratorWorkspaceController extends Controller
             $upload->original_filename,
             ['Content-Type' => $upload->mime_type ?: 'application/octet-stream']
         );
+    }
+
+    /**
+     * Sert un fichier supplémentaire d'un dossier (lecture/preview ou download).
+     */
+    public function getSupplementaryFile(Request $request, $dossierId, $fileId)
+    {
+        $dossier = $this->authorizeDossier($request, (int) $dossierId);
+        $file = \App\Models\DossierSupplementaryFile::where('dossier_id', $dossier->id)->findOrFail($fileId);
+        if (!$file->path || !Storage::disk('local')->exists($file->path)) {
+            return response()->json(['success' => false, 'message' => 'Fichier introuvable'], 404);
+        }
+        $absPath = Storage::disk('local')->path($file->path);
+        $disposition = $request->boolean('download') ? 'attachment' : 'inline';
+        return response()->file($absPath, [
+            'Content-Type' => $file->mime_type ?: 'application/octet-stream',
+            'Content-Disposition' => $disposition . '; filename="' . $file->original_filename . '"',
+        ]);
     }
 
     public function getInvitationItemPdf(Request $request, $dossierId, $invitationId, $itemId)

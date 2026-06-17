@@ -16,6 +16,7 @@ class Dossier extends Model
         'scope', // client | member | family
         'family_member_id',
         'collaborator_id',
+        'collab_access_revoked',
         'name',
         'service_name',
         'status',
@@ -33,6 +34,7 @@ class Dossier extends Model
             'deadline_at' => 'date',
             'allow_collab_uploads' => 'boolean',
             'send_base_docs_to_client' => 'boolean',
+            'collab_access_revoked' => 'boolean',
         ];
     }
 
@@ -59,6 +61,11 @@ class Dossier extends Model
     public function uploads(): HasMany
     {
         return $this->hasMany(DossierUpload::class)->orderBy('created_at');
+    }
+
+    public function supplementaryFiles(): HasMany
+    {
+        return $this->hasMany(DossierSupplementaryFile::class)->orderByDesc('created_at');
     }
 
     public function invitations(): HasMany

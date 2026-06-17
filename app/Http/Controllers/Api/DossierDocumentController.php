@@ -35,6 +35,7 @@ class DossierDocumentController extends Controller
             'name' => 'nullable|string|max:191',
             'description' => 'nullable|string|max:2000',
             'document_template_id' => 'nullable|exists:document_templates,id',
+            'doc_type' => 'nullable|in:ircc,fo',
             'pdf' => 'nullable|file|mimes:pdf|max:20480',
             'sort_order' => 'nullable|integer',
         ]);
@@ -65,9 +66,13 @@ class DossierDocumentController extends Controller
             }
         }
 
+        // Priorité : doc_type explicite > doc_type du template > 'ircc' par défaut
+        $docType = $request->input('doc_type') ?: ($templateModel?->doc_type ?: 'ircc');
+
         $doc = DossierDocument::create([
             'dossier_id' => $dossier->id,
             'document_template_id' => $templateModel?->id,
+            'doc_type' => $docType,
             'name' => $name,
             'description' => $request->input('description'),
             'template_path' => $path,
@@ -146,6 +151,7 @@ class DossierDocumentController extends Controller
             'id' => $d->id,
             'dossier_id' => $d->dossier_id,
             'document_template_id' => $d->document_template_id,
+            'doc_type' => $d->doc_type ?: 'ircc',
             'name' => $d->name,
             'description' => $d->description,
             'status' => $d->status,

@@ -11,6 +11,8 @@ use App\Http\Controllers\Api\CollaboratorWorkspaceController;
 use App\Http\Controllers\Api\DocumentController;
 use App\Http\Controllers\Api\DossierController;
 use App\Http\Controllers\Api\DossierDocumentController;
+use App\Http\Controllers\Api\DossierSupplementaryFileController;
+use App\Http\Controllers\Api\ImmigrationServiceController;
 use App\Http\Controllers\Api\FormTypeController;
 use App\Http\Controllers\Api\FileManagerController;
 use App\Http\Controllers\Api\InvitationController;
@@ -65,6 +67,26 @@ Route::prefix('admin')->group(function () {
         // Module Client (CRUD clients, membres famille, dossiers)
         // Statistiques cabinet (dashboard + analytics)
         Route::get('/statistics/overview', [StatisticsController::class, 'overview']);
+
+        // Services d'immigration (CRUD)
+        Route::get('/immigration-services', [ImmigrationServiceController::class, 'index']);
+        Route::post('/immigration-services', [ImmigrationServiceController::class, 'store']);
+        Route::put('/immigration-services/{id}', [ImmigrationServiceController::class, 'update']);
+        Route::delete('/immigration-services/{id}', [ImmigrationServiceController::class, 'destroy']);
+
+        // Dossier — édition inline notes + révocation accès collab
+        Route::patch('/dossiers/{id}/notes', [\App\Http\Controllers\Api\DossierController::class, 'updateNotes']);
+        Route::patch('/dossiers/{id}/collab-access', [\App\Http\Controllers\Api\DossierController::class, 'toggleCollabAccess']);
+
+        // Fichiers supplémentaires sur dossier (admin)
+        Route::get('/dossiers/{id}/supplementary-files', [DossierSupplementaryFileController::class, 'index']);
+        Route::post('/dossiers/{id}/supplementary-files', [DossierSupplementaryFileController::class, 'store']);
+        Route::get('/dossier-supplementary-files/{id}', [DossierSupplementaryFileController::class, 'show']);
+        Route::delete('/dossier-supplementary-files/{id}', [DossierSupplementaryFileController::class, 'destroy']);
+
+        // Export ZIP — sélection multi-catégorie
+        Route::get('/dossiers/{id}/export-catalog', [DossierSupplementaryFileController::class, 'exportCatalog']);
+        Route::post('/dossiers/export-zip', [DossierSupplementaryFileController::class, 'exportZip']);
 
         Route::get('/module-clients/options', [ClientController::class, 'options']);
         Route::apiResource('module-clients', ClientController::class)->parameters(['module-client' => 'id']);
@@ -244,6 +266,9 @@ Route::prefix('collaborator')->group(function () {
 
         // Fichiers téléversés librement par le client lors de l'invitation
         Route::get('/dossiers/{id}/invitations/{invitationId}/uploads/{uploadId}', [CollaboratorWorkspaceController::class, 'getInvitationClientUpload']);
+
+        // Fichiers supplémentaires du dossier (lecture seule pour le collab)
+        Route::get('/dossiers/{id}/supplementary-files/{fileId}', [CollaboratorWorkspaceController::class, 'getSupplementaryFile']);
 
         // Détail d'un item d'invitation (lecture seule, pour le viewer de formulaire)
         Route::get('/invitation-items/{itemId}', [CollaboratorWorkspaceController::class, 'getInvitationItem']);

@@ -16,6 +16,7 @@ class DocumentTemplate extends Model
         'description',
         'service_name',
         'target_location',
+        'doc_type', // ircc (gouvernemental) | fo (provincial)
         'category',
         'category_id',
         'pdf_path',

@@ -202,6 +202,7 @@ class DossierController extends Controller
             DossierDocument::create([
                 'dossier_id' => $dossier->id,
                 'document_template_id' => $tpl->id,
+                'doc_type' => $tpl->doc_type ?: 'ircc',
                 'name' => $tpl->name,
                 'description' => $tpl->description,
                 'template_path' => $newPath,
@@ -222,7 +223,9 @@ class DossierController extends Controller
             'collaborator',
             'documents',
             'uploads',
+            'supplementaryFiles',
             'invitations:id,dossier_id,email,status,sent_at,expires_at,completed_at,unique_code',
+            'invitations.uploads',
         ])->findOrFail($id);
 
         return response()->json([
@@ -323,6 +326,33 @@ class DossierController extends Controller
                 'scope' => Dossier::scopeOptions(),
                 'status' => Dossier::statusOptions(),
             ],
+        ]);
+    }
+
+    /**
+     * Mise à jour atomique des notes d'un dossier (édition inline).
+     */
+    public function updateNotes(Request $request, $id)
+    {
+        $request->validate(['notes' => 'nullable|string']);
+        $dossier = Dossier::findOrFail($id);
+        $dossier->notes = $request->input('notes');
+        $dossier->save();
+        return response()->json(['success' => true, 'data' => ['notes' => $dossier->notes]]);
+    }
+
+    /**
+     * Bascule la révocation d'accès du collaborateur (sans le retirer du dossier).
+     */
+    public function toggleCollabAccess(Request $request, $id)
+    {
+        $request->validate(['collab_access_revoked' => 'required|boolean']);
+        $dossier = Dossier::findOrFail($id);
+        $dossier->collab_access_revoked = $request->boolean('collab_access_revoked');
+        $dossier->save();
+        return response()->json([
+            'success' => true,
+            'data' => ['collab_access_revoked' => $dossier->collab_access_revoked],
         ]);
     }
 }
