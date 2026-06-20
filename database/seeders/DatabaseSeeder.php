@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
             AdminSeeder::class,
             ClientSeeder::class,
             CategoryAndFormTypeSeeder::class,
+            ImmigrationServiceSeeder::class,
         ]);
 
         // User::factory(10)->create();
