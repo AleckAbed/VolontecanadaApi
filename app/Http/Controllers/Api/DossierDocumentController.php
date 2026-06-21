@@ -170,13 +170,25 @@ class DossierDocumentController extends Controller
             Storage::disk('local')->delete($doc->filled_pdf_path);
         }
         $filename = "dossier-documents/{$doc->dossier_id}/filled-{$doc->id}-" . time() . '.pdf';
-        Storage::disk('local')->put($filename, $pdfContent);
 
-        $doc->filled_pdf_path = $filename;
-        $doc->form_data = $request->input('form_data');
-        $doc->filled_by = 'admin';
-        $doc->last_saved_at = now();
-        $doc->save();
+        try {
+            Storage::disk('local')->put($filename, $pdfContent);
+
+            $doc->filled_pdf_path = $filename;
+            $doc->form_data = DossierDocument::sanitizeFormData($request->input('form_data'));
+            $doc->filled_by = 'admin';
+            $doc->last_saved_at = now();
+            $doc->save();
+        } catch (\Throwable $e) {
+            \Log::error('Admin saveAsAdmin failed', [
+                'doc_id' => $doc->id,
+                'error' => $e->getMessage(),
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => "Erreur lors de l'enregistrement du document.",
+            ], 500);
+        }
 
         return response()->json(['success' => true, 'data' => $this->format($doc->fresh())]);
     }

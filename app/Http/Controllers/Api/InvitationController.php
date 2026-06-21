@@ -420,7 +420,7 @@ class InvitationController extends Controller
 
         $request->validate(['form_data' => 'required|array']);
 
-        $item->form_data = $request->form_data;
+        $item->form_data = \App\Models\DossierDocument::sanitizeFormData($request->form_data);
         $item->markStarted();
         $invitation->recomputeStatus();
 
@@ -455,8 +455,10 @@ class InvitationController extends Controller
         }
 
         // Persist form values (annotation storage) — drives form restoration
+        // Sanitize : les XFA dynamiques produisent de l'UTF-8 invalide qui ferait
+        // échouer le json_encode du cast Eloquent (→ 500).
         if ($request->has('form_data')) {
-            $item->form_data = $request->form_data ?? [];
+            $item->form_data = \App\Models\DossierDocument::sanitizeFormData($request->form_data ?? []);
         }
 
         // Persist filled PDF bytes if provided
