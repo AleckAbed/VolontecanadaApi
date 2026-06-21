@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AdminAuthController;
 use App\Http\Controllers\Api\AdminProfileController;
 use App\Http\Controllers\Api\CategoryController;
+use App\Http\Controllers\Api\ChatbotController;
 use App\Http\Controllers\Api\ClientAuthController;
 use App\Http\Controllers\Api\ClientController;
 use App\Http\Controllers\Api\CollaboratorAuthController;
@@ -67,6 +68,11 @@ Route::prefix('admin')->group(function () {
         // Module Client (CRUD clients, membres famille, dossiers)
         // Statistiques cabinet (dashboard + analytics)
         Route::get('/statistics/overview', [StatisticsController::class, 'overview']);
+
+        // Chatbot Volo — assistance plateforme (admin)
+        Route::middleware('throttle:30,1')->post('/chatbot/ask', [ChatbotController::class, 'askAdmin']);
+        Route::get('/chatbot/settings', [ChatbotController::class, 'getSettings']);
+        Route::put('/chatbot/settings', [ChatbotController::class, 'updateSettings']);
 
         // Services d'immigration (CRUD)
         Route::get('/immigration-services', [ImmigrationServiceController::class, 'index']);
@@ -250,6 +256,9 @@ Route::prefix('collaborator')->group(function () {
     Route::middleware('auth:collaborator')->group(function () {
         Route::post('/logout', [CollaboratorAuthController::class, 'logout']);
         Route::get('/me', [CollaboratorAuthController::class, 'me']);
+
+        // Chatbot Volo — assistance plateforme (collab)
+        Route::middleware('throttle:30,1')->post('/chatbot/ask', [ChatbotController::class, 'askCollab']);
 
         // Dossiers attribués
         Route::get('/dossiers', [CollaboratorWorkspaceController::class, 'listDossiers']);
