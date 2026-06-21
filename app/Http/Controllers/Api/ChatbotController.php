@@ -36,27 +36,32 @@ class ChatbotController extends Controller
             'history.*.content' => 'string|max:4000',
         ]);
 
-        $settings = ChatbotSettings::current();
-        $resolved = $this->resolver->resolve($data['message'], $settings);
-
-        // Si le resolver retourne une désambiguïsation, on court-circuite l'appel IA.
-        if (is_array($resolved) && isset($resolved['disambiguation'])) {
-            return response()->json([
-                'success' => true,
-                'data' => $resolved,
-            ]);
-        }
-
-        $contextData = is_string($resolved) ? $resolved : null;
-        $systemPrompt = ChatbotKnowledge::buildSystemPrompt($audience, $settings, $contextData);
-
         try {
+            $settings = ChatbotSettings::current();
+            $resolved = $this->resolver->resolve($data['message'], $settings);
+
+            // Si le resolver retourne une désambiguïsation, on court-circuite l'appel IA.
+            if (is_array($resolved) && isset($resolved['disambiguation'])) {
+                return response()->json([
+                    'success' => true,
+                    'data' => $resolved,
+                ]);
+            }
+
+            $contextData = is_string($resolved) ? $resolved : null;
+            $systemPrompt = ChatbotKnowledge::buildSystemPrompt($audience, $settings, $contextData);
+
             $answer = $this->llm->askGemini(
                 $systemPrompt,
                 $data['history'] ?? [],
                 $data['message']
             );
         } catch (\Throwable $e) {
+            \Log::error('Chatbot ask failed', [
+                'audience' => $audience,
+                'error' => $e->getMessage(),
+                'file' => $e->getFile() . ':' . $e->getLine(),
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage(),
