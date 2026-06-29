@@ -7,9 +7,12 @@ use App\Mail\InvitationMail;
 use App\Models\Client;
 use App\Models\DocumentTemplate;
 use App\Models\Dossier;
+use App\Models\DossierDocument;
+use App\Models\DossierSupplementaryFile;
 use App\Models\FamilyMember;
 use App\Models\FormType;
 use App\Models\Invitation;
+use App\Models\InvitationAttachment;
 use App\Models\InvitationItem;
 use App\Models\InvitationUpload;
 use App\Models\QuestionnaireRequest;
@@ -100,6 +103,10 @@ class InvitationController extends Controller
             'items.*.kind' => 'required|in:form,document',
             'items.*.form_type_id' => 'nullable|exists:form_types,id',
             'items.*.document_template_id' => 'nullable|exists:document_templates,id',
+            'items.*.dossier_document_id' => 'nullable|exists:dossier_documents,id',
+            // Fichiers supplémentaires du dossier à joindre en lecture seule
+            'attachments' => 'nullable|array',
+            'attachments.*' => 'integer|exists:dossier_supplementary_files,id',
         ]);
         if ($validator->fails()) {
             return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
@@ -160,7 +167,21 @@ class InvitationController extends Controller
             foreach ($request->items as $idx => $item) {
                 $kind = $item['kind'];
                 if ($kind === 'form' && empty($item['form_type_id'])) continue;
-                if ($kind === 'document' && empty($item['document_template_id'])) continue;
+
+                // Document : soit lié à un modèle, soit à un document de dossier
+                // (pour les documents ajoutés manuellement sans modèle).
+                $dossierDocId = $item['dossier_document_id'] ?? null;
+                $templateId = $item['document_template_id'] ?? null;
+                if ($kind === 'document') {
+                    // Si on a un document de dossier, on récupère son template (s'il en a un)
+                    if ($dossierDocId) {
+                        $dossierDoc = DossierDocument::find($dossierDocId);
+                        if ($dossierDoc && $dossierDoc->document_template_id) {
+                            $templateId = $dossierDoc->document_template_id;
+                        }
+                    }
+                    if (empty($templateId) && empty($dossierDocId)) continue;
+                }
 
                 $linkedCode = null;
 
@@ -192,7 +213,8 @@ class InvitationController extends Controller
                     'invitation_id' => $invitation->id,
                     'item_kind' => $kind,
                     'form_type_id' => $kind === 'form' ? $item['form_type_id'] : null,
-                    'document_template_id' => $kind === 'document' ? $item['document_template_id'] : null,
+                    'document_template_id' => $kind === 'document' ? $templateId : null,
+                    'dossier_document_id' => $kind === 'document' ? $dossierDocId : null,
                     'linked_questionnaire_code' => $linkedCode,
                     'status' => 'pending',
                     'sort_order' => $idx,
@@ -201,6 +223,20 @@ class InvitationController extends Controller
                 if (!empty($linkedCode)) {
                     QuestionnaireRequest::where('unique_code', $linkedCode)
                         ->update(['invitation_item_id' => $invItem->id]);
+                }
+            }
+
+            // Fichiers supplémentaires du dossier joints en lecture seule.
+            // On ne garde que ceux qui appartiennent réellement au dossier de l'invitation.
+            if ($invitation->dossier_id && $request->filled('attachments')) {
+                $validFileIds = DossierSupplementaryFile::where('dossier_id', $invitation->dossier_id)
+                    ->whereIn('id', $request->attachments)
+                    ->pluck('id');
+                foreach ($validFileIds as $fileId) {
+                    InvitationAttachment::firstOrCreate([
+                        'invitation_id' => $invitation->id,
+                        'dossier_supplementary_file_id' => $fileId,
+                    ]);
                 }
             }
 
@@ -365,6 +401,8 @@ class InvitationController extends Controller
         $invitation = Invitation::with([
             'items.formType.category',
             'items.documentTemplate.categoryRel',
+            'items.dossierDocument',
+            'attachments.supplementaryFile',
             'client',
             'uploads',
         ])->where('unique_code', $code)->first();
@@ -386,6 +424,20 @@ class InvitationController extends Controller
 
         $item = InvitationItem::where('invitation_id', $invitation->id)->findOrFail($itemId);
         if ($item->item_kind !== 'document') abort(404);
+
+        // Document lié à une instance de dossier : on sert la version PARTAGÉE
+        // (remplie par admin/collab/client) pour que tout le monde édite le même fichier.
+        if ($item->dossier_document_id) {
+            $dossierDoc = DossierDocument::find($item->dossier_document_id);
+            if ($dossierDoc) {
+                if ($dossierDoc->filled_pdf_path && Storage::disk('local')->exists($dossierDoc->filled_pdf_path)) {
+                    return response()->file(Storage::disk('local')->path($dossierDoc->filled_pdf_path));
+                }
+                if ($dossierDoc->template_path && Storage::disk('local')->exists($dossierDoc->template_path)) {
+                    return response()->file(Storage::disk('local')->path($dossierDoc->template_path));
+                }
+            }
+        }
 
         // If the client has already saved a filled version, serve it (resume).
         if ($item->pdf_filled_path && Storage::disk('local')->exists($item->pdf_filled_path)) {
@@ -471,29 +523,35 @@ class InvitationController extends Controller
             Storage::disk('local')->put($path, $bytes);
             $item->pdf_filled_path = $path;
 
-            // Propagation vers le DossierDocument partagé : si l'invitation est liée
-            // à un dossier et que ce modèle de document a été instancié dans ce dossier,
-            // on sauvegarde aussi dans le filled_pdf_path du DossierDocument pour que
-            // collaborateur et admin voient la même version.
-            if ($invitation->dossier_id && $item->document_template_id) {
-                $dossierDoc = \App\Models\DossierDocument::where('dossier_id', $invitation->dossier_id)
+            // Propagation vers le DossierDocument partagé : tout le monde (admin,
+            // collaborateur, client) édite la MÊME instance.
+            //  - Priorité : lien direct dossier_document_id (gère aussi les docs sans modèle)
+            //  - Repli : recherche par document_template_id (items historiques)
+            $dossierDoc = null;
+            if ($item->dossier_document_id) {
+                $dossierDoc = DossierDocument::find($item->dossier_document_id);
+            } elseif ($invitation->dossier_id && $item->document_template_id) {
+                $dossierDoc = DossierDocument::where('dossier_id', $invitation->dossier_id)
                     ->where('document_template_id', $item->document_template_id)
                     ->first();
-                if ($dossierDoc) {
-                    // Supprime l'ancien fichier rempli si différent
-                    if ($dossierDoc->filled_pdf_path
-                        && $dossierDoc->filled_pdf_path !== $path
-                        && Storage::disk('local')->exists($dossierDoc->filled_pdf_path)) {
-                        Storage::disk('local')->delete($dossierDoc->filled_pdf_path);
-                    }
-                    $sharedPath = "dossier-documents/{$dossierDoc->dossier_id}/filled-{$dossierDoc->id}-" . time() . '.pdf';
-                    Storage::disk('local')->put($sharedPath, $bytes);
-                    $dossierDoc->filled_pdf_path = $sharedPath;
-                    $dossierDoc->filled_by = 'client';
-                    $dossierDoc->last_saved_at = now();
-                    // Pas de changement automatique de status (le client n'est pas censé marquer terminé pour le collab)
-                    $dossierDoc->save();
+            }
+            if ($dossierDoc) {
+                // Supprime l'ancien fichier rempli si différent
+                if ($dossierDoc->filled_pdf_path
+                    && $dossierDoc->filled_pdf_path !== $path
+                    && Storage::disk('local')->exists($dossierDoc->filled_pdf_path)) {
+                    Storage::disk('local')->delete($dossierDoc->filled_pdf_path);
                 }
+                $sharedPath = "dossier-documents/{$dossierDoc->dossier_id}/filled-{$dossierDoc->id}-" . time() . '.pdf';
+                Storage::disk('local')->put($sharedPath, $bytes);
+                $dossierDoc->filled_pdf_path = $sharedPath;
+                $dossierDoc->filled_by = 'client';
+                $dossierDoc->last_saved_at = now();
+                if ($request->has('form_data')) {
+                    $dossierDoc->form_data = DossierDocument::sanitizeFormData($request->form_data ?? []);
+                }
+                // Pas de changement automatique de status (le client n'est pas censé marquer terminé pour le collab)
+                $dossierDoc->save();
             }
         }
 
@@ -727,21 +785,88 @@ class InvitationController extends Controller
                     'status' => $effectiveStatus,
                     'name' => $i->item_kind === 'form'
                         ? ($i->formType?->name ?? 'Formulaire')
-                        : ($i->documentTemplate?->name ?? 'Document'),
+                        : ($i->documentTemplate?->name ?? $i->dossierDocument?->name ?? 'Document'),
                     'description' => $i->item_kind === 'form'
                         ? $i->formType?->description
-                        : $i->documentTemplate?->description,
+                        : ($i->documentTemplate?->description ?? $i->dossierDocument?->description),
                     'category' => $i->item_kind === 'form'
                         ? $i->formType?->category?->name
                         : ($i->documentTemplate?->categoryRel?->name ?? $i->documentTemplate?->category),
                     'form_type_code' => $i->formType?->code,
                     'document_template_id' => $i->documentTemplate?->id,
+                    'dossier_document_id' => $i->dossier_document_id,
                     'linked_questionnaire_code' => $i->linked_questionnaire_code,
                     'form_data' => $i->form_data,
-                    'has_filled_pdf' => !empty($i->pdf_filled_path),
+                    'has_filled_pdf' => !empty($i->pdf_filled_path)
+                        || ($i->dossierDocument && !empty($i->dossierDocument->filled_pdf_path)),
                     'last_saved_at' => $i->last_saved_at?->format('Y-m-d H:i'),
                 ];
             }),
+            // Fichiers supplémentaires du dossier joints en lecture seule
+            'attachments' => $inv->attachments->map(function ($a) {
+                $f = $a->supplementaryFile;
+                if (!$f) return null;
+                return [
+                    'id' => $a->id,
+                    'label' => $f->label,
+                    'original_filename' => $f->original_filename,
+                    'mime_type' => $f->mime_type,
+                    'size' => $f->size,
+                ];
+            })->filter()->values(),
         ];
+    }
+
+    /**
+     * Renvoie les documents et fichiers d'un dossier à pré-cocher dans le
+     * formulaire d'invitation (documents IRCC/FO remplissables + pièces jointes).
+     * Utilisé par la page « Nouvelle invitation » quand un dossier est sélectionné.
+     */
+    public function dossierInvitationPayload($dossierId)
+    {
+        $dossier = Dossier::with(['documents', 'supplementaryFiles'])->findOrFail($dossierId);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'send_base_docs_to_client' => (bool) $dossier->send_base_docs_to_client,
+                'documents' => $dossier->documents->map(fn($d) => [
+                    'id' => $d->id,
+                    'name' => $d->name,
+                    'doc_type' => $d->doc_type ?? 'ircc',
+                    'document_template_id' => $d->document_template_id,
+                    'status' => $d->status,
+                ])->values(),
+                'supplementary_files' => $dossier->supplementaryFiles->map(fn($f) => [
+                    'id' => $f->id,
+                    'label' => $f->label,
+                    'original_filename' => $f->original_filename,
+                    'mime_type' => $f->mime_type,
+                    'size' => $f->size,
+                ])->values(),
+            ],
+        ]);
+    }
+
+    /**
+     * Téléchargement public d'un fichier supplémentaire joint à l'invitation (lecture seule).
+     */
+    public function publicGetAttachment($code, $attachmentId)
+    {
+        $invitation = Invitation::where('unique_code', $code)->firstOrFail();
+        if ($invitation->isExpired()) abort(410);
+
+        $attachment = InvitationAttachment::where('invitation_id', $invitation->id)
+            ->with('supplementaryFile')
+            ->findOrFail($attachmentId);
+
+        $file = $attachment->supplementaryFile;
+        if (!$file || !Storage::disk('local')->exists($file->path)) {
+            abort(404);
+        }
+        return response()->file(
+            Storage::disk('local')->path($file->path),
+            ['Content-Disposition' => 'inline; filename="' . ($file->original_filename ?: 'fichier') . '"']
+        );
     }
 }

@@ -70,6 +70,11 @@ class Invitation extends Model
         return $this->hasMany(InvitationUpload::class)->orderBy('created_at');
     }
 
+    public function attachments(): HasMany
+    {
+        return $this->hasMany(InvitationAttachment::class);
+    }
+
     public function isExpired(): bool
     {
         return $this->expires_at && Carbon::now()->isAfter($this->expires_at);

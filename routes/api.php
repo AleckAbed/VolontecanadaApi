@@ -138,6 +138,8 @@ Route::prefix('admin')->group(function () {
         Route::get('/invitations/{id}', [InvitationController::class, 'show']);
         Route::delete('/invitations/{id}', [InvitationController::class, 'destroy']);
         Route::post('/invitations/{id}/resend', [InvitationController::class, 'resendEmail']);
+        // Payload pré-remplissage depuis un dossier (documents + fichiers supplémentaires)
+        Route::get('/dossiers/{id}/invitation-payload', [InvitationController::class, 'dossierInvitationPayload']);
         Route::get('/invitations/{id}/items/{itemId}/pdf', [InvitationController::class, 'adminItemPdf']);
         Route::get('/invitations/{id}/uploads/{uploadId}/download', [InvitationController::class, 'adminDownloadUpload']);
 
@@ -232,6 +234,7 @@ Route::middleware('throttle:10,1')->group(function () {
 Route::middleware('throttle:30,1')->group(function () {
     Route::get('/invitations/{code}', [InvitationController::class, 'publicShow']);
     Route::get('/invitations/{code}/items/{itemId}/pdf', [InvitationController::class, 'publicGetItemPdf']);
+    Route::get('/invitations/{code}/attachments/{attachmentId}', [InvitationController::class, 'publicGetAttachment']);
 });
 Route::middleware('throttle:60,1')->group(function () {
     Route::post('/invitations/{code}/items/{itemId}/save-form', [InvitationController::class, 'publicSaveFormItem']);

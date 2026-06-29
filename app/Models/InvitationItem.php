@@ -15,6 +15,7 @@ class InvitationItem extends Model
         'item_kind',
         'form_type_id',
         'document_template_id',
+        'dossier_document_id',
         'linked_questionnaire_code',
         'status',
         'form_data',
@@ -46,6 +47,11 @@ class InvitationItem extends Model
     public function documentTemplate(): BelongsTo
     {
         return $this->belongsTo(DocumentTemplate::class);
+    }
+
+    public function dossierDocument(): BelongsTo
+    {
+        return $this->belongsTo(DossierDocument::class);
     }
 
     public function markStarted(): void
