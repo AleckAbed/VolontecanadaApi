@@ -39,6 +39,7 @@ class DataPurger
 
         $files = 0;
         DB::transaction(function () use ($dossier, $invitationIds, $requestIds) {
+            $this->deleteLinkedQuestionnaires($invitationIds);
             DB::table('invitations')->whereIn('id', $invitationIds)->delete();
             DB::table('document_requests')->whereIn('id', $requestIds)->delete();
             $dossier->delete(); // documents, téléversements, pièces, échéances : en cascade
@@ -73,6 +74,7 @@ class DataPurger
         $keep = DB::table('invoices')->where('client_id', $client->id)->exists();
 
         DB::transaction(function () use ($client, $invitationIds, $requestIds, $keep) {
+            $this->deleteLinkedQuestionnaires($invitationIds);
             DB::table('invitations')->whereIn('id', $invitationIds)->delete();
             DB::table('document_requests')->whereIn('id', $requestIds)->delete();
             DB::table('questionnaire_requests')->where('client_id', $client->id)->delete();
@@ -99,6 +101,32 @@ class DataPurger
             . ($keep ? ' (identité conservée avec ses factures)' : ''), $reason, $files, $performedBy);
 
         return ['files' => $files, 'kept_for_invoices' => $keep];
+    }
+
+    /**
+     * Supprime un envoi avec tout ce qu'il contient : formulaires et leurs réponses
+     * (questionnaires liés), PDF remplis, fichiers transmis par le client. Avant, les
+     * questionnaires et les fichiers restaient, et le lien du questionnaire marchait encore.
+     */
+    public function purgeInvitation(int $invitationId): int
+    {
+        $ids = collect([$invitationId]);
+        $paths = $this->formPaths($ids, collect());
+        DB::transaction(function () use ($ids) {
+            $this->deleteLinkedQuestionnaires($ids);
+            DB::table('invitations')->whereIn('id', $ids)->delete(); // éléments, fichiers transmis : en cascade
+        });
+
+        return Documents::deleteMany($paths->unique());
+    }
+
+    private function deleteLinkedQuestionnaires($invitationIds): void
+    {
+        $codes = DB::table('invitation_items')->whereIn('invitation_id', $invitationIds)->whereNotNull('linked_questionnaire_code')->pluck('linked_questionnaire_code');
+        $itemIds = DB::table('invitation_items')->whereIn('invitation_id', $invitationIds)->pluck('id');
+        DB::table('questionnaire_requests')
+            ->where(fn ($q) => $q->whereIn('unique_code', $codes)->orWhereIn('invitation_item_id', $itemIds))
+            ->delete();
     }
 
     /** Fichiers des formulaires envoyés au client (PDF remplis, pièces téléversées). */

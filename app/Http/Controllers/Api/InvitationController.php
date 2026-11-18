@@ -268,7 +268,10 @@ class InvitationController extends Controller
     public function destroy($id)
     {
         $invitation = Invitation::findOrFail($id);
-        $invitation->delete();
+        // Formulaires, réponses et fichiers compris (avant : restaient en base et sur le disque).
+        app(\App\Services\Compliance\DataPurger::class)->purgeInvitation($invitation->id);
+        \App\Support\Audit::log('deleted', 'invitation', $invitation->id, [], null, null, [$invitation->dossier_id, $invitation->client_id]);
+
         return response()->json(['success' => true]);
     }
 
