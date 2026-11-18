@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Support\Documents;
 use App\Http\Controllers\Controller;
 use App\Mail\InvitationMail;
 use App\Models\Client;
@@ -320,11 +321,11 @@ class InvitationController extends Controller
     {
         $item = InvitationItem::where('invitation_id', $invitationId)->findOrFail($itemId);
         if ($item->item_kind !== 'document') abort(404);
-        if ($item->pdf_filled_path && Storage::disk('local')->exists($item->pdf_filled_path)) {
-            return response()->file(Storage::disk('local')->path($item->pdf_filled_path));
+        if ($item->pdf_filled_path && Documents::disk()->exists($item->pdf_filled_path)) {
+            return Documents::inline($item->pdf_filled_path);
         }
-        if ($item->documentTemplate && Storage::disk('local')->exists($item->documentTemplate->pdf_path)) {
-            return response()->file(Storage::disk('local')->path($item->documentTemplate->pdf_path));
+        if ($item->documentTemplate && Documents::disk()->exists($item->documentTemplate->pdf_path)) {
+            return Documents::inline($item->documentTemplate->pdf_path);
         }
         abort(404);
     }
@@ -335,11 +336,10 @@ class InvitationController extends Controller
     public function adminDownloadUpload($invitationId, $uploadId)
     {
         $upload = InvitationUpload::where('invitation_id', $invitationId)->findOrFail($uploadId);
-        if (!Storage::disk('local')->exists($upload->path)) {
+        if (!Documents::disk()->exists($upload->path)) {
             abort(404);
         }
-        return response()->download(
-            Storage::disk('local')->path($upload->path),
+        return Documents::disk()->download($upload->path,
             $upload->original_filename
         );
     }
@@ -432,22 +432,22 @@ class InvitationController extends Controller
         if ($item->dossier_document_id) {
             $dossierDoc = DossierDocument::find($item->dossier_document_id);
             if ($dossierDoc) {
-                if ($dossierDoc->filled_pdf_path && Storage::disk('local')->exists($dossierDoc->filled_pdf_path)) {
-                    return response()->file(Storage::disk('local')->path($dossierDoc->filled_pdf_path));
+                if ($dossierDoc->filled_pdf_path && Documents::disk()->exists($dossierDoc->filled_pdf_path)) {
+                    return Documents::inline($dossierDoc->filled_pdf_path);
                 }
-                if ($dossierDoc->template_path && Storage::disk('local')->exists($dossierDoc->template_path)) {
-                    return response()->file(Storage::disk('local')->path($dossierDoc->template_path));
+                if ($dossierDoc->template_path && Documents::disk()->exists($dossierDoc->template_path)) {
+                    return Documents::inline($dossierDoc->template_path);
                 }
             }
         }
 
         // If the client has already saved a filled version, serve it (resume).
-        if ($item->pdf_filled_path && Storage::disk('local')->exists($item->pdf_filled_path)) {
-            return response()->file(Storage::disk('local')->path($item->pdf_filled_path));
+        if ($item->pdf_filled_path && Documents::disk()->exists($item->pdf_filled_path)) {
+            return Documents::inline($item->pdf_filled_path);
         }
         // Otherwise serve the original template.
-        if ($item->documentTemplate && Storage::disk('local')->exists($item->documentTemplate->pdf_path)) {
-            return response()->file(Storage::disk('local')->path($item->documentTemplate->pdf_path));
+        if ($item->documentTemplate && Documents::disk()->exists($item->documentTemplate->pdf_path)) {
+            return Documents::inline($item->documentTemplate->pdf_path);
         }
         abort(404);
     }
@@ -522,7 +522,7 @@ class InvitationController extends Controller
                 return response()->json(['success' => false, 'message' => 'PDF invalide'], 422);
             }
             $path = CurrentCabinet::storagePath("invitation-items/{$invitation->unique_code}/item-{$item->id}.pdf");
-            Storage::disk('local')->put($path, $bytes);
+            Documents::disk()->put($path, $bytes);
             $item->pdf_filled_path = $path;
 
             // Propagation vers le DossierDocument partagé : tout le monde (admin,
@@ -541,11 +541,11 @@ class InvitationController extends Controller
                 // Supprime l'ancien fichier rempli si différent
                 if ($dossierDoc->filled_pdf_path
                     && $dossierDoc->filled_pdf_path !== $path
-                    && Storage::disk('local')->exists($dossierDoc->filled_pdf_path)) {
-                    Storage::disk('local')->delete($dossierDoc->filled_pdf_path);
+                    && Documents::disk()->exists($dossierDoc->filled_pdf_path)) {
+                    Documents::disk()->delete($dossierDoc->filled_pdf_path);
                 }
                 $sharedPath = CurrentCabinet::storagePath("dossier-documents/{$dossierDoc->dossier_id}/filled-{$dossierDoc->id}-" . time() . '.pdf');
-                Storage::disk('local')->put($sharedPath, $bytes);
+                Documents::disk()->put($sharedPath, $bytes);
                 $dossierDoc->filled_pdf_path = $sharedPath;
                 $dossierDoc->filled_by = 'client';
                 $dossierDoc->last_saved_at = now();
@@ -625,7 +625,7 @@ class InvitationController extends Controller
         ]);
 
         $file = $request->file('file');
-        $path = $file->store(CurrentCabinet::storagePath("invitation-uploads/{$invitation->unique_code}"), 'local');
+        $path = $file->store(CurrentCabinet::storagePath("invitation-uploads/{$invitation->unique_code}"), Documents::name());
 
         $upload = InvitationUpload::create([
             'invitation_id' => $invitation->id,
@@ -662,8 +662,8 @@ class InvitationController extends Controller
         }
         $upload = InvitationUpload::where('invitation_id', $invitation->id)->findOrFail($uploadId);
 
-        if ($upload->path && Storage::disk('local')->exists($upload->path)) {
-            Storage::disk('local')->delete($upload->path);
+        if ($upload->path && Documents::disk()->exists($upload->path)) {
+            Documents::disk()->delete($upload->path);
         }
         $upload->delete();
 
@@ -882,11 +882,10 @@ class InvitationController extends Controller
             ->findOrFail($attachmentId);
 
         $file = $attachment->supplementaryFile;
-        if (!$file || !Storage::disk('local')->exists($file->path)) {
+        if (!$file || !Documents::disk()->exists($file->path)) {
             abort(404);
         }
-        return response()->file(
-            Storage::disk('local')->path($file->path),
+        return Documents::inline($file->path,
             ['Content-Disposition' => 'inline; filename="' . ($file->original_filename ?: 'fichier') . '"']
         );
     }

@@ -3,16 +3,11 @@
 namespace App\Mail;
 
 use App\Models\DocumentRequest;
-use Illuminate\Bus\Queueable;
-use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
-use Illuminate\Queue\SerializesModels;
 
-class DocumentInvitation extends Mailable
+class DocumentInvitation extends QueuedMail
 {
-    use Queueable, SerializesModels;
-
     public function __construct(
         public DocumentRequest $documentRequest
     ) {}
@@ -46,5 +41,11 @@ class DocumentInvitation extends Mailable
     public function attachments(): array
     {
         return [];
+    }
+
+    /** Échec définitif après les 3 essais : le statut affiché au cabinet passe à « non envoyé ». */
+    public function failed(\Throwable $e): void
+    {
+        $this->documentRequest->forceFill(['email_sent' => false, 'email_error' => mb_substr($e->getMessage(), 0, 500)])->saveQuietly();
     }
 }

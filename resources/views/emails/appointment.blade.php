@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>{{ $isCancelled ? 'Rendez-vous annulé' : 'Rendez-vous confirmé' }} — {{ $cabinetName }}</title>
+    <title>{{ $isCancelled ? 'Rendez-vous annulé' : ($isReminder ? 'Rappel de rendez-vous' : 'Rendez-vous confirmé') }} — {{ $cabinetName }}</title>
     <style>
         body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 620px; margin: 0 auto; padding: 20px; background-color: #fafafa; }
         .header { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); color: white; padding: 24px; text-align: center; border-radius: 8px 8px 0 0; }
@@ -16,7 +16,7 @@
 <body>
     <div class="header">
         <h1 style="margin:0;font-size:22px">{{ $cabinetName }}</h1>
-        <p style="margin:6px 0 0;opacity:.9">{{ $isCancelled ? 'Rendez-vous annulé' : 'Rendez-vous confirmé' }}</p>
+        <p style="margin:6px 0 0;opacity:.9">{{ $isCancelled ? 'Rendez-vous annulé' : ($isReminder ? 'Rappel de rendez-vous' : 'Rendez-vous confirmé') }}</p>
     </div>
 
     <div class="content">
@@ -38,7 +38,11 @@
         @if ($isCancelled)
             <p>Ce rendez-vous est annulé. Vous pouvez en réserver un autre à tout moment.</p>
         @else
+            @if ($isReminder)
+            <p>Nous vous rappelons votre rendez-vous ci-dessus.
+            @else
             <p>L’invitation jointe (fichier .ics) l’ajoute à votre agenda en un clic.
+            @endif
                 @if ($appointment->meeting_mode === 'video' && ! $appointment->meeting_url)
                     Le lien de la visioconférence vous sera transmis par votre conseiller.
                 @endif
@@ -51,7 +55,7 @@
 
     <div class="footer">
         {{ $cabinetName }}<br>
-        Cet email vous a été envoyé automatiquement à la suite de votre réservation.
+        Ce courriel vous a été envoyé automatiquement à la suite de votre réservation.
     </div>
 </body>
 </html>

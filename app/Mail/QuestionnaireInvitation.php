@@ -3,16 +3,11 @@
 namespace App\Mail;
 
 use App\Models\QuestionnaireRequest;
-use Illuminate\Bus\Queueable;
-use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
-use Illuminate\Queue\SerializesModels;
 
-class QuestionnaireInvitation extends Mailable
+class QuestionnaireInvitation extends QueuedMail
 {
-    use Queueable, SerializesModels;
-
     /**
      * Create a new message instance.
      */
@@ -63,5 +58,11 @@ class QuestionnaireInvitation extends Mailable
     public function attachments(): array
     {
         return [];
+    }
+
+    /** Échec définitif après les 3 essais : le statut affiché au cabinet passe à « non envoyé ». */
+    public function failed(\Throwable $e): void
+    {
+        $this->questionnaireRequest->forceFill(['email_sent' => false, 'email_error' => mb_substr($e->getMessage(), 0, 500)])->saveQuietly();
     }
 }

@@ -28,6 +28,17 @@ return [
     |
     */
 
+    /*
+    | Disque des documents des clients (2.5). « local » en développement ;
+    | en production « documents_s3 » : stockage objet hébergé au Canada,
+    | chiffré côté serveur. Les fichiers ne sont jamais publics : ils passent
+    | toujours par l'API, qui vérifie les droits avant de les servir.
+    */
+    'documents' => env('DOCUMENTS_DISK', 'local'),
+
+    /* Disque de destination des sauvegardes de la base (2.12). */
+    'backups' => env('BACKUP_DISK', 'backups_local'),
+
     'disks' => [
 
         'local' => [
@@ -45,6 +56,39 @@ return [
             'visibility' => 'public',
             'throw' => false,
             'report' => false,
+        ],
+
+        'documents_s3' => [
+            'driver' => 's3',
+            'key' => env('DOCUMENTS_S3_KEY'),
+            'secret' => env('DOCUMENTS_S3_SECRET'),
+            'region' => env('DOCUMENTS_S3_REGION', 'ca-central-1'),
+            'bucket' => env('DOCUMENTS_S3_BUCKET'),
+            'endpoint' => env('DOCUMENTS_S3_ENDPOINT'),
+            'use_path_style_endpoint' => env('DOCUMENTS_S3_PATH_STYLE', false),
+            'visibility' => 'private',
+            'options' => ['ServerSideEncryption' => env('DOCUMENTS_S3_SSE', 'AES256')],
+            'throw' => true,
+            'report' => true,
+        ],
+
+        'backups_local' => [
+            'driver' => 'local',
+            'root' => storage_path('app/backups'),
+            'throw' => true,
+        ],
+
+        'backups_s3' => [
+            'driver' => 's3',
+            'key' => env('BACKUP_S3_KEY', env('DOCUMENTS_S3_KEY')),
+            'secret' => env('BACKUP_S3_SECRET', env('DOCUMENTS_S3_SECRET')),
+            'region' => env('BACKUP_S3_REGION', env('DOCUMENTS_S3_REGION', 'ca-central-1')),
+            'bucket' => env('BACKUP_S3_BUCKET'),
+            'endpoint' => env('BACKUP_S3_ENDPOINT', env('DOCUMENTS_S3_ENDPOINT')),
+            'use_path_style_endpoint' => env('BACKUP_S3_PATH_STYLE', env('DOCUMENTS_S3_PATH_STYLE', false)),
+            'visibility' => 'private',
+            'options' => ['ServerSideEncryption' => env('BACKUP_S3_SSE', 'AES256')],
+            'throw' => true,
         ],
 
         's3' => [

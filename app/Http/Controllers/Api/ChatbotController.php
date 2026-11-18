@@ -36,8 +36,18 @@ class ChatbotController extends Controller
             'history.*.content' => 'string|max:4000',
         ]);
 
+        $settings = ChatbotSettings::current();
+        // 2.3 : les questions partent chez un fournisseur d'IA hors Canada ;
+        // rien n'est envoyé tant qu'un gestionnaire du cabinet ne l'a pas activé.
+        if (! $settings->enabled) {
+            return response()->json([
+                'success' => false,
+                'code' => 'assistant_disabled',
+                'message' => "L'assistant IA est désactivé pour ce cabinet. Un propriétaire ou un administrateur peut l'activer dans les paramètres de l'assistant.",
+            ], 403);
+        }
+
         try {
-            $settings = ChatbotSettings::current();
             $resolved = $this->resolver->resolve($data['message'], $settings);
 
             // Si le resolver retourne une désambiguïsation, on court-circuite l'appel IA.
@@ -87,6 +97,8 @@ class ChatbotController extends Controller
     public function updateSettings(Request $request)
     {
         $data = $request->validate([
+            'enabled' => 'boolean',
+            'accept_foreign_processing' => 'required_if:enabled,true|accepted_if:enabled,true',
             'allow_immigration_questions' => 'boolean',
             'immigration_questions_for' => 'in:admin,collab,both',
             'allow_dossier_lookup' => 'boolean',
@@ -95,6 +107,11 @@ class ChatbotController extends Controller
         ]);
 
         $settings = ChatbotSettings::current();
+        unset($data['accept_foreign_processing']);
+        if (array_key_exists('enabled', $data) && $data['enabled'] !== $settings->enabled) {
+            $data['enabled_at'] = $data['enabled'] ? now() : null;
+            $data['enabled_by'] = $data['enabled'] ? $request->user()->id : null;
+        }
         $settings->update($data);
 
         return response()->json([

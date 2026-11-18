@@ -5,7 +5,9 @@ namespace App\Providers;
 use App\Models\PersonalAccessToken;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\RateLimiter;
+use App\Support\Tenancy\CurrentCabinet;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Sanctum\Sanctum;
 
@@ -46,6 +48,18 @@ class AppServiceProvider extends ServiceProvider
         // Le propriétaire d'un jeton est chargé sans filtrage par cabinet :
         // c'est lui qui détermine le cabinet courant (voir PersonalAccessToken).
         Sanctum::usePersonalAccessTokenModel(PersonalAccessToken::class);
+
+        // Le worker de file traite des tâches de tous les cabinets dans le même processus :
+        // aucun contexte de cabinet ne doit passer d'une tâche à la suivante.
+        // (Pas en « sync » : la tâche s'exécute alors dans la requête, dont il faut garder le cabinet.)
+        $reset = function ($event) {
+            if ($event->connectionName !== 'sync') {
+                CurrentCabinet::clear();
+            }
+        };
+        Queue::before($reset);
+        Queue::after($reset);
+        Queue::failing($reset);
     }
 
     /**

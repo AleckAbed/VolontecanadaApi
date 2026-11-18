@@ -19,27 +19,24 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => [
-        'http://localhost:3001',
-        'http://localhost:3012',
-        'http://127.0.0.1:3001',
-        'http://127.0.0.1:3012',
-        'http://192.168.100.197:3001',
-        'http://192.168.100.197:3012',
-        'http://192.168.2.105:3001',
-        'https://app.volontecanada.ca',
-        'https://volontecanadaplateforme.vercel.app',
-            // Tunnels
-        'https://74b3721d5eaa05.lhr.life',        // localhost.run front
-        'https://XXXXXXXXXXXXXXX.lhr.life',        // localhost.run API (remplace par ta vraie URL)
-        'https://paramount-avoid-radio.ngrok-free.dev', // ngrok
-    ],
+    // Production : seulement l'adresse du front (FRONTEND_URL) et CORS_EXTRA_ORIGINS
+    // (liste séparée par des virgules). Les adresses de développement (localhost,
+    // réseau local, tunnels) ne sont acceptées que hors production.
+    'allowed_origins' => array_values(array_filter(array_merge(
+        [rtrim((string) env('FRONTEND_URL', ''), '/')],
+        array_map('trim', explode(',', (string) env('CORS_EXTRA_ORIGINS', ''))),
+        env('APP_ENV') === 'production' ? [] : [
+            'http://localhost:3001',
+            'http://localhost:3012',
+            'http://127.0.0.1:3001',
+            'http://127.0.0.1:3012',
+        ],
+    ))),
 
-    // Patterns : réseau local + en prod vous pouvez ajouter votre domaine HTTPS
-    'allowed_origins_patterns' => [
+    'allowed_origins_patterns' => env('APP_ENV') === 'production' ? [] : [
         '/^http:\/\/192\.168\.\d+\.\d+:3001$/',
         '/^http:\/\/10\.\d+\.\d+\.\d+:3001$/',
-        '/^https:\/\/(.*\.)?vercel\.app$/',  // Frontend Vercel
+        '/^https:\/\/[a-z0-9-]+\.(lhr\.life|ngrok-free\.dev)$/', // tunnels de démonstration
     ],
 
     'allowed_headers' => ['*'],

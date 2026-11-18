@@ -5,16 +5,11 @@ namespace App\Mail;
 use App\Models\Admin;
 use App\Models\Cabinet;
 use App\Support\Roles;
-use Illuminate\Bus\Queueable;
-use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
-use Illuminate\Queue\SerializesModels;
 
-class TeamInvitationMail extends Mailable
+class TeamInvitationMail extends QueuedMail
 {
-    use Queueable, SerializesModels;
-
     public function __construct(
         public Admin $member,
         public ?Cabinet $cabinet,

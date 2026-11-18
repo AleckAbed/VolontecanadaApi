@@ -4,17 +4,12 @@ namespace App\Mail;
 
 use App\Models\Cabinet;
 use App\Models\Invoice;
-use Illuminate\Bus\Queueable;
-use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
-use Illuminate\Queue\SerializesModels;
 
 /** Facture envoyée au client, avec le lien pour la consulter et la payer. */
-class InvoiceMail extends Mailable
+class InvoiceMail extends QueuedMail
 {
-    use Queueable, SerializesModels;
-
     public function __construct(public Invoice $invoice, public ?Cabinet $cabinet, public bool $isReceipt = false) {}
 
     public function envelope(): Envelope

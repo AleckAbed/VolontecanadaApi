@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Support\Documents;
 use App\Http\Controllers\Controller;
 use App\Models\Dossier;
 use App\Models\DossierDocument;
@@ -204,14 +205,14 @@ class CollaboratorWorkspaceController extends Controller
         $this->authorizeDossier($request, $doc->dossier_id);
 
         // Sert la version remplie si elle existe, sinon le template vierge.
-        $path = $doc->filled_pdf_path && Storage::disk('local')->exists($doc->filled_pdf_path)
+        $path = $doc->filled_pdf_path && Documents::disk()->exists($doc->filled_pdf_path)
             ? $doc->filled_pdf_path
             : $doc->template_path;
 
-        if (!$path || !Storage::disk('local')->exists($path)) {
+        if (!$path || !Documents::disk()->exists($path)) {
             return response()->json(['success' => false, 'message' => 'Fichier introuvable'], 404);
         }
-        $content = Storage::disk('local')->get($path);
+        $content = Documents::disk()->get($path);
         return response($content, 200, [
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'inline; filename="' . $doc->name . '.pdf"',
@@ -234,14 +235,14 @@ class CollaboratorWorkspaceController extends Controller
         }
 
         // Supprime l'ancien filled pdf si présent
-        if ($doc->filled_pdf_path && Storage::disk('local')->exists($doc->filled_pdf_path)) {
-            Storage::disk('local')->delete($doc->filled_pdf_path);
+        if ($doc->filled_pdf_path && Documents::disk()->exists($doc->filled_pdf_path)) {
+            Documents::disk()->delete($doc->filled_pdf_path);
         }
 
         $filename = CurrentCabinet::storagePath("dossier-documents/{$doc->dossier_id}/filled-{$doc->id}-" . time() . '.pdf');
 
         try {
-            Storage::disk('local')->put($filename, $pdfContent);
+            Documents::disk()->put($filename, $pdfContent);
 
             $doc->filled_pdf_path = $filename;
             $doc->form_data = DossierDocument::sanitizeFormData($request->input('form_data'));
@@ -289,7 +290,7 @@ class CollaboratorWorkspaceController extends Controller
         ]);
         $me = $this->me($request);
         $file = $request->file('file');
-        $path = $file->store(CurrentCabinet::storagePath("dossier-uploads/{$dossier->id}"), 'local');
+        $path = $file->store(CurrentCabinet::storagePath("dossier-uploads/{$dossier->id}"), Documents::name());
 
         $upload = DossierUpload::create([
             'dossier_id' => $dossier->id,
@@ -319,8 +320,8 @@ class CollaboratorWorkspaceController extends Controller
         $dossier = $this->authorizeDossier($request, (int) $dossierId);
         $upload = DossierUpload::where('dossier_id', $dossier->id)->findOrFail($uploadId);
 
-        if ($upload->path && Storage::disk('local')->exists($upload->path)) {
-            Storage::disk('local')->delete($upload->path);
+        if ($upload->path && Documents::disk()->exists($upload->path)) {
+            Documents::disk()->delete($upload->path);
         }
         $upload->delete();
         return response()->json(['success' => true]);
@@ -384,11 +385,10 @@ class CollaboratorWorkspaceController extends Controller
         $invitation = \App\Models\Invitation::where('dossier_id', $dossier->id)->findOrFail($invitationId);
         $upload = \App\Models\InvitationUpload::where('invitation_id', $invitation->id)->findOrFail($uploadId);
 
-        if (!$upload->path || !Storage::disk('local')->exists($upload->path)) {
+        if (!$upload->path || !Documents::disk()->exists($upload->path)) {
             return response()->json(['success' => false, 'message' => 'Fichier introuvable'], 404);
         }
-        return response()->download(
-            Storage::disk('local')->path($upload->path),
+        return Documents::disk()->download($upload->path,
             $upload->original_filename,
             ['Content-Type' => $upload->mime_type ?: 'application/octet-stream']
         );
@@ -401,12 +401,11 @@ class CollaboratorWorkspaceController extends Controller
     {
         $dossier = $this->authorizeDossier($request, (int) $dossierId);
         $file = \App\Models\DossierSupplementaryFile::where('dossier_id', $dossier->id)->findOrFail($fileId);
-        if (!$file->path || !Storage::disk('local')->exists($file->path)) {
+        if (!$file->path || !Documents::disk()->exists($file->path)) {
             return response()->json(['success' => false, 'message' => 'Fichier introuvable'], 404);
         }
-        $absPath = Storage::disk('local')->path($file->path);
         $disposition = $request->boolean('download') ? 'attachment' : 'inline';
-        return response()->file($absPath, [
+        return Documents::inline($file->path, [
             'Content-Type' => $file->mime_type ?: 'application/octet-stream',
             'Content-Disposition' => $disposition . '; filename="' . $file->original_filename . '"',
         ]);
@@ -421,14 +420,14 @@ class CollaboratorWorkspaceController extends Controller
             ->findOrFail($itemId);
 
         // Sert le PDF rempli s'il existe, sinon le template vierge envoyé au client.
-        $path = $item->pdf_filled_path && Storage::disk('local')->exists($item->pdf_filled_path)
+        $path = $item->pdf_filled_path && Documents::disk()->exists($item->pdf_filled_path)
             ? $item->pdf_filled_path
             : $item->documentTemplate?->pdf_path;
 
-        if (!$path || !Storage::disk('local')->exists($path)) {
+        if (!$path || !Documents::disk()->exists($path)) {
             return response()->json(['success' => false, 'message' => 'PDF non disponible'], 404);
         }
-        $content = Storage::disk('local')->get($path);
+        $content = Documents::disk()->get($path);
         $name = $item->documentTemplate?->name ?: 'document';
         return response($content, 200, [
             'Content-Type' => 'application/pdf',

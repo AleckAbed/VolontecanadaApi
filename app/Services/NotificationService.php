@@ -54,6 +54,12 @@ class NotificationService
             ->pluck('id');
     }
 
+    /** Gestionnaires actifs du cabinet (propriétaires, administrateurs). */
+    public function managerIds(): Collection
+    {
+        return Admin::where('is_active', true)->whereIn('role', Roles::MANAGERS)->pluck('id');
+    }
+
     /** Destinataires d'un événement d'envoi : la personne qui l'a envoyé, sinon le personnel qui suit les dossiers. */
     public function recipientsFor(?int $sentBy): Collection
     {

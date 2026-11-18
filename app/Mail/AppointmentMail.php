@@ -5,18 +5,13 @@ namespace App\Mail;
 use App\Models\Appointment;
 use App\Models\BookingService;
 use App\Models\Cabinet;
-use Illuminate\Bus\Queueable;
-use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Attachment;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
-use Illuminate\Queue\SerializesModels;
 
-/** Confirmation (avec invitation .ics) ou annulation d'un rendez-vous, envoyée au client. */
-class AppointmentMail extends Mailable
+/** Confirmation (avec invitation .ics), rappel la veille ou annulation d'un rendez-vous, envoyé au client. */
+class AppointmentMail extends QueuedMail
 {
-    use Queueable, SerializesModels;
-
     public function __construct(public Appointment $appointment, public ?Cabinet $cabinet, public string $kind) {}
 
     public function envelope(): Envelope
@@ -24,9 +19,11 @@ class AppointmentMail extends Mailable
         $cabinet = $this->cabinet?->name ?? 'Votre cabinet';
 
         return new Envelope(
-            subject: $this->kind === 'cancelled'
-                ? "Rendez-vous annulé — {$cabinet}"
-                : "Rendez-vous confirmé le {$this->localStart()->locale('fr_CA')->isoFormat('D MMMM [à] HH:mm')} — {$cabinet}",
+            subject: match ($this->kind) {
+                'cancelled' => "Rendez-vous annulé — {$cabinet}",
+                'reminder' => "Rappel : rendez-vous le {$this->localStart()->locale('fr_CA')->isoFormat('D MMMM [à] HH:mm')} — {$cabinet}",
+                default => "Rendez-vous confirmé le {$this->localStart()->locale('fr_CA')->isoFormat('D MMMM [à] HH:mm')} — {$cabinet}",
+            },
         );
     }
 
@@ -45,6 +42,7 @@ class AppointmentMail extends Mailable
                 'modeLabel' => BookingService::MEETING_MODES[$this->appointment->meeting_mode] ?? '',
                 'location' => $service?->location,
                 'isCancelled' => $this->kind === 'cancelled',
+                'isReminder' => $this->kind === 'reminder',
                 'manageUrl' => rtrim(config('app.frontend_url'), '/') . '/rendez-vous/' . $this->appointment->public_token,
             ],
         );
@@ -52,7 +50,7 @@ class AppointmentMail extends Mailable
 
     public function attachments(): array
     {
-        if ($this->kind === 'cancelled') {
+        if ($this->kind !== 'confirmed') {
             return [];
         }
 

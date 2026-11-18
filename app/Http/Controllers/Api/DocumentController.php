@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Support\Documents;
 use App\Http\Controllers\Controller;
 use App\Mail\DocumentInvitation;
 use App\Models\DocumentRequest;
@@ -81,7 +82,7 @@ class DocumentController extends Controller
 
         $admin = $request->user('admin');
 
-        $path = $request->file('pdf')->store(CurrentCabinet::storagePath('document-templates'), 'local');
+        $path = $request->file('pdf')->store(CurrentCabinet::storagePath('document-templates'), Documents::name());
 
         $template = DocumentTemplate::create([
             'name' => $request->name,
@@ -195,7 +196,7 @@ class DocumentController extends Controller
     public function destroyTemplate(int $id)
     {
         $template = DocumentTemplate::findOrFail($id);
-        Storage::disk('local')->delete($template->pdf_path);
+        Documents::disk()->delete($template->pdf_path);
         $template->delete();
 
         return response()->json(['success' => true, 'message' => 'Modèle supprimé']);
@@ -206,11 +207,11 @@ class DocumentController extends Controller
     {
         $template = DocumentTemplate::findOrFail($id);
 
-        if (!Storage::disk('local')->exists($template->pdf_path)) {
+        if (!Documents::disk()->exists($template->pdf_path)) {
             return response()->json(['success' => false, 'message' => 'Fichier introuvable'], 404);
         }
 
-        $content = Storage::disk('local')->get($template->pdf_path);
+        $content = Documents::disk()->get($template->pdf_path);
 
         return response($content, 200, [
             'Content-Type' => 'application/pdf',
@@ -418,11 +419,11 @@ class DocumentController extends Controller
     {
         $docRequest = DocumentRequest::with('template')->findOrFail($id);
 
-        if (empty($docRequest->pdf_filled_path) || !Storage::disk('local')->exists($docRequest->pdf_filled_path)) {
+        if (empty($docRequest->pdf_filled_path) || !Documents::disk()->exists($docRequest->pdf_filled_path)) {
             return response()->json(['success' => false, 'message' => 'PDF non disponible'], 404);
         }
 
-        $content = Storage::disk('local')->get($docRequest->pdf_filled_path);
+        $content = Documents::disk()->get($docRequest->pdf_filled_path);
         $name = $docRequest->template?->name ?? 'document';
 
         return response($content, 200, [
@@ -481,11 +482,11 @@ class DocumentController extends Controller
 
         $template = $docRequest->template;
 
-        if (!Storage::disk('local')->exists($template->pdf_path)) {
+        if (!Documents::disk()->exists($template->pdf_path)) {
             return response()->json(['success' => false, 'message' => 'Fichier introuvable'], 404);
         }
 
-        $content = Storage::disk('local')->get($template->pdf_path);
+        $content = Documents::disk()->get($template->pdf_path);
 
         return response($content, 200, [
             'Content-Type' => 'application/pdf',
@@ -543,7 +544,7 @@ class DocumentController extends Controller
         // Décoder et stocker le PDF final
         $pdfContent = base64_decode($request->pdf_base64);
         $pdfPath = CurrentCabinet::storagePath('document-filled/' . $docRequest->id . '_' . time() . '.pdf');
-        Storage::disk('local')->put($pdfPath, $pdfContent);
+        Documents::disk()->put($pdfPath, $pdfContent);
 
         $docRequest->update([
             'form_data' => $request->form_data,

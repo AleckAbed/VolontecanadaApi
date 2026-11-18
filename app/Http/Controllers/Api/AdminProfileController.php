@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Support\Documents;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -99,7 +100,7 @@ class AdminProfileController extends Controller
         foreach ($files as $file) {
             $ext = strtolower($file->getClientOriginalExtension() ?: 'jpg');
             $name = Str::uuid()->toString() . '.' . $ext;
-            $file->storeAs('lock-screen/' . $admin->id, $name);
+            $file->storeAs('lock-screen/' . $admin->id, $name, Documents::name());
             $list[] = $name;
         }
         $admin->lock_screen_backgrounds = $list;
@@ -119,8 +120,8 @@ class AdminProfileController extends Controller
             return response()->json(['success' => false, 'message' => 'Image inconnue'], 404);
         }
         $path = 'lock-screen/' . $admin->id . '/' . $filename;
-        if (Storage::disk('local')->exists($path)) {
-            Storage::disk('local')->delete($path);
+        if (Documents::disk()->exists($path)) {
+            Documents::disk()->delete($path);
         }
         $admin->lock_screen_backgrounds = array_values(array_filter($list, fn ($n) => $n !== $filename));
         $admin->save();
@@ -136,10 +137,10 @@ class AdminProfileController extends Controller
             abort(404);
         }
         $path = 'lock-screen/' . $admin->id . '/' . $filename;
-        if (!Storage::disk('local')->exists($path)) {
+        if (!Documents::disk()->exists($path)) {
             abort(404);
         }
-        return response()->file(Storage::disk('local')->path($path));
+        return Documents::inline($path);
     }
 
     private function mapBackgrounds($admin): array

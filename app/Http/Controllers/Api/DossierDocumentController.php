@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Support\Documents;
 use App\Http\Controllers\Controller;
 use App\Models\Dossier;
 use App\Models\DocumentTemplate;
@@ -55,14 +56,14 @@ class DossierDocumentController extends Controller
             // Copie le PDF du template dans le dossier (snapshot)
             $extension = pathinfo($templateModel->pdf_path, PATHINFO_EXTENSION) ?: 'pdf';
             $newPath = CurrentCabinet::storagePath("dossier-documents/{$dossier->id}/" . uniqid('tmpl_') . '.' . $extension);
-            if (!Storage::disk('local')->exists($templateModel->pdf_path)) {
+            if (!Documents::disk()->exists($templateModel->pdf_path)) {
                 return response()->json(['success' => false, 'message' => 'Fichier du modèle introuvable'], 404);
             }
-            Storage::disk('local')->copy($templateModel->pdf_path, $newPath);
+            Documents::disk()->copy($templateModel->pdf_path, $newPath);
             $path = $newPath;
             if (!$name || !trim($name)) $name = $templateModel->name;
         } else {
-            $path = $request->file('pdf')->store(CurrentCabinet::storagePath("dossier-documents/{$dossier->id}"), 'local');
+            $path = $request->file('pdf')->store(CurrentCabinet::storagePath("dossier-documents/{$dossier->id}"), Documents::name());
             if (!$name || !trim($name)) {
                 return response()->json(['success' => false, 'message' => 'Nom requis pour un téléversement libre'], 422);
             }
@@ -111,11 +112,11 @@ class DossierDocumentController extends Controller
     public function destroy($id)
     {
         $doc = DossierDocument::findOrFail($id);
-        if ($doc->template_path && Storage::disk('local')->exists($doc->template_path)) {
-            Storage::disk('local')->delete($doc->template_path);
+        if ($doc->template_path && Documents::disk()->exists($doc->template_path)) {
+            Documents::disk()->delete($doc->template_path);
         }
-        if ($doc->filled_pdf_path && Storage::disk('local')->exists($doc->filled_pdf_path)) {
-            Storage::disk('local')->delete($doc->filled_pdf_path);
+        if ($doc->filled_pdf_path && Documents::disk()->exists($doc->filled_pdf_path)) {
+            Documents::disk()->delete($doc->filled_pdf_path);
         }
         $doc->delete();
         return response()->json(['success' => true]);
@@ -134,7 +135,7 @@ class DossierDocumentController extends Controller
     public function serveFilled(Request $request, $id)
     {
         $doc = DossierDocument::findOrFail($id);
-        if (!$doc->filled_pdf_path || !Storage::disk('local')->exists($doc->filled_pdf_path)) {
+        if (!$doc->filled_pdf_path || !Documents::disk()->exists($doc->filled_pdf_path)) {
             return response()->json(['success' => false, 'message' => 'Aucun PDF rempli disponible'], 404);
         }
         return $this->servePdfFile($doc->filled_pdf_path, $doc->name . ' (rempli).pdf');
@@ -147,10 +148,10 @@ class DossierDocumentController extends Controller
     public function serveForEdit($id)
     {
         $doc = DossierDocument::findOrFail($id);
-        $path = $doc->filled_pdf_path && Storage::disk('local')->exists($doc->filled_pdf_path)
+        $path = $doc->filled_pdf_path && Documents::disk()->exists($doc->filled_pdf_path)
             ? $doc->filled_pdf_path
             : $doc->template_path;
-        if (!$path || !Storage::disk('local')->exists($path)) {
+        if (!$path || !Documents::disk()->exists($path)) {
             return response()->json(['success' => false, 'message' => 'Fichier introuvable'], 404);
         }
         return $this->servePdfFile($path, $doc->name . '.pdf');
@@ -173,13 +174,13 @@ class DossierDocumentController extends Controller
         }
 
         // Supprime l'ancien fichier rempli si on a un autre chemin précédent
-        if ($doc->filled_pdf_path && Storage::disk('local')->exists($doc->filled_pdf_path)) {
-            Storage::disk('local')->delete($doc->filled_pdf_path);
+        if ($doc->filled_pdf_path && Documents::disk()->exists($doc->filled_pdf_path)) {
+            Documents::disk()->delete($doc->filled_pdf_path);
         }
         $filename = CurrentCabinet::storagePath("dossier-documents/{$doc->dossier_id}/filled-{$doc->id}-" . time() . '.pdf');
 
         try {
-            Storage::disk('local')->put($filename, $pdfContent);
+            Documents::disk()->put($filename, $pdfContent);
 
             $doc->filled_pdf_path = $filename;
             $doc->form_data = DossierDocument::sanitizeFormData($request->input('form_data'));
@@ -222,10 +223,10 @@ class DossierDocumentController extends Controller
 
     private function servePdfFile(?string $path, string $downloadName)
     {
-        if (!$path || !Storage::disk('local')->exists($path)) {
+        if (!$path || !Documents::disk()->exists($path)) {
             return response()->json(['success' => false, 'message' => 'Fichier introuvable'], 404);
         }
-        $content = Storage::disk('local')->get($path);
+        $content = Documents::disk()->get($path);
         return response($content, 200, [
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'inline; filename="' . $downloadName . '"',

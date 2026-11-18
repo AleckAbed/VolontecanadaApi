@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Services\Compliance\DataPurger;
 use App\Models\Client;
 use App\Models\FamilyMember;
 use Illuminate\Http\Request;
@@ -200,11 +201,14 @@ class ClientController extends Controller
     public function destroy(int $id)
     {
         $client = Client::findOrFail($id);
-        $client->delete();
+        // Fichiers et formulaires compris ; avec des factures, seule l'identité est gardée avec elles.
+        $result = app(DataPurger::class)->purgeClient($client, 'manual', request()->user()?->id);
 
         return response()->json([
             'success' => true,
-            'message' => 'Client supprimé',
+            'message' => $result['kept_for_invoices']
+                ? 'Données du client supprimées. Son nom et son courriel restent sur ses factures (obligation fiscale).'
+                : 'Client supprimé',
         ]);
     }
 

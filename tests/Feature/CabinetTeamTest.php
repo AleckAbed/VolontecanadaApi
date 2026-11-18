@@ -49,7 +49,7 @@ class CabinetTeamTest extends TestCase
     private function inviteTokenFor(string $email): string
     {
         $token = null;
-        Mail::assertSent(TeamInvitationMail::class, function (TeamInvitationMail $mail) use ($email, &$token) {
+        Mail::assertQueued(TeamInvitationMail::class, function (TeamInvitationMail $mail) use ($email, &$token) {
             if ($mail->member->email === $email) {
                 $token = $mail->token;
             }
@@ -197,13 +197,13 @@ class CabinetTeamTest extends TestCase
     public function test_mot_de_passe_oublie_ne_revele_pas_les_comptes_et_reinitialise(): void
     {
         $this->postJson('/api/admin/password/forgot', ['email' => 'inconnu@example.test'])->assertOk();
-        Mail::assertNothingSent();
+        Mail::assertNothingOutgoing();
 
         $oldSession = $this->owner->createToken('ancienne')->plainTextToken;
 
         $this->postJson('/api/admin/password/forgot', ['email' => 'owner@example.test'])->assertOk();
         $token = null;
-        Mail::assertSent(AdminPasswordResetMail::class, function (AdminPasswordResetMail $m) use (&$token) {
+        Mail::assertQueued(AdminPasswordResetMail::class, function (AdminPasswordResetMail $m) use (&$token) {
             $token = $m->token;
 
             return $m->purpose === 'reset';

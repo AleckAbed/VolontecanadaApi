@@ -207,7 +207,7 @@ class ClientPortalTest extends TestCase
         $this->postJson("/api/admin/module-clients/{$this->client->id}/portal-invite")->assertOk();
 
         $token = null;
-        Mail::assertSent(ClientPortalAccessMail::class, function (ClientPortalAccessMail $m) use (&$token) {
+        Mail::assertQueued(ClientPortalAccessMail::class, function (ClientPortalAccessMail $m) use (&$token) {
             $token = $m->token;
 
             return $m->purpose === 'invite';
