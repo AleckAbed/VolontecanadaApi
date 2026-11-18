@@ -92,11 +92,16 @@ class InvoiceService
         }
 
         $client = $invoice->client;
-        if (! $client?->email) {
+        $to = $client?->email;
+        if ($invoice->company_id) {
+            $company = \App\Models\Company::find($invoice->company_id);
+            $to = $company?->email ?: \App\Models\CompanyContact::where('company_id', $invoice->company_id)->where('is_active', true)->orderBy('id')->value('email');
+        }
+        if (! $to) {
             return false;
         }
         try {
-            Mail::to($client->email)->send(new InvoiceMail($invoice->fresh(['lines', 'client']), Cabinet::find($invoice->cabinet_id)));
+            Mail::to($to)->send(new InvoiceMail($invoice->fresh(['lines', 'client']), Cabinet::find($invoice->cabinet_id)));
 
             return true;
         } catch (\Throwable $e) {

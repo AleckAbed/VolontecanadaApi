@@ -34,6 +34,8 @@ class ClientPortalController extends Controller
                 'service_name' => $d->service_name,
                 'status' => $d->status,
                 'status_label' => \App\Models\Dossier::statusOptions()[$d->status] ?? $d->status,
+                'company' => $d->company_id && ($co = \App\Models\Company::find($d->company_id))
+                    ? ['name' => $co->name, 'visibility' => $d->company_visibility] : null,
                 'opened_at' => $d->opened_at ? \Illuminate\Support\Carbon::parse($d->opened_at)->toDateString() : null,
                 'deadline_at' => $d->deadline_at ? \Illuminate\Support\Carbon::parse($d->deadline_at)->toDateString() : null,
                 'for' => $d->scope === 'member'

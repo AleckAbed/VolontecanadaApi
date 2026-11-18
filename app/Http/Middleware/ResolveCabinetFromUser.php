@@ -21,7 +21,7 @@ use Illuminate\Support\Facades\Auth;
  */
 class ResolveCabinetFromUser
 {
-    private const GUARDS = ['admin', 'collaborator', 'client'];
+    private const GUARDS = ['admin', 'collaborator', 'client', 'company'];
 
     public function handle(Request $request, Closure $next, ?string $mode = null)
     {

@@ -51,7 +51,7 @@ class PublicInvoiceController extends Controller
     public function forClient(Request $request)
     {
         $client = $request->user('client');
-        $invoices = Invoice::where('client_id', $client->id)->where('status', '!=', 'draft')->orderByDesc('issued_at')->get();
+        $invoices = Invoice::where('client_id', $client->id)->whereNull('company_id')->where('status', '!=', 'draft')->orderByDesc('issued_at')->get();
 
         return response()->json(['success' => true, 'data' => $invoices->map(fn (Invoice $i) => InvoiceController::summary($i) + [
             'url' => '/facture/' . $i->public_token,

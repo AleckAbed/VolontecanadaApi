@@ -55,6 +55,9 @@ class AuditLog extends Model
         'cabinet' => 'Réglages du cabinet',
         'chatbot_settings' => 'Réglages de l’assistant IA',
         'data_request' => 'Demande sur les données',
+        'company' => 'Entreprise',
+        'company_contact' => 'Contact d’entreprise',
+        'company_request' => 'Demande d’une entreprise',
     ];
 
     protected $fillable = [

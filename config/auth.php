@@ -64,6 +64,11 @@ return [
             'driver' => 'sanctum',
             'provider' => 'platform_admins',
         ],
+        // Espace entreprise : contacts des clients « entreprise ».
+        'company' => [
+            'driver' => 'sanctum',
+            'provider' => 'company_contacts',
+        ],
     ],
 
     /*
@@ -108,6 +113,10 @@ return [
         ],
 
         // Provider pour l'éditeur de la plateforme
+        'company_contacts' => [
+            'driver' => 'eloquent',
+            'model' => App\Models\CompanyContact::class,
+        ],
         'platform_admins' => [
             'driver' => 'eloquent',
             'model' => App\Models\PlatformAdmin::class,

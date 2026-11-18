@@ -17,6 +17,7 @@ final class NotificationTypes
         'client_upload' => ['Un client a transmis un fichier', 'Clients et envois', true, false],
         'questionnaire_submitted' => ['Un client a soumis un questionnaire', 'Clients et envois', true, false],
         'mandate_signed' => ['Un client a signé son mandat', 'Clients et envois', true, false],
+        'company_request' => ['Une entreprise demande l’ouverture d’un dossier pour un employé', 'Clients et envois', true, true],
         'deadline_reminder' => ['Échéance qui approche', 'Échéances', true, false],
         'deadline_overdue' => ['Échéance dépassée', 'Échéances', true, false],
         'deadline_digest' => ['Récapitulatif quotidien des échéances (7 h)', 'Échéances', false, true],
