@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Concerns\IssuesAuthCookie;
 use App\Http\Controllers\Controller;
+use App\Support\Audit;
 use App\Models\Client;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
@@ -44,6 +45,7 @@ class ClientAuthController extends Controller
 
             $client->forceFill(['last_login_at' => now()])->save();
             $token = $client->createToken('client-token')->plainTextToken;
+            Audit::log('login', 'client', $client->id, [], $client->cabinet_id, ['type' => 'client', 'id' => $client->id, 'name' => 'Client']);
 
             // Cookie HttpOnly comme pour l'admin et le collaborateur : sans lui, le
             // front (qui ne garde plus le jeton en JavaScript) perdait la session.

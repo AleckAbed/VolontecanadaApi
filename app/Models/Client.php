@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
 use App\Models\Concerns\BelongsToCabinet;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -10,6 +11,8 @@ use Laravel\Sanctum\HasApiTokens;
 
 class Client extends Authenticatable
 {
+    use Auditable;
+
     use BelongsToCabinet;
 
     use HasApiTokens, HasFactory, Notifiable;

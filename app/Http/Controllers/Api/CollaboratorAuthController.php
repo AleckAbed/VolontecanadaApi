@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Support\Audit;
 use App\Models\Collaborator;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
@@ -69,6 +70,7 @@ class CollaboratorAuthController extends Controller
             }
 
             $token = $collab->createToken('collab-token')->plainTextToken;
+            Audit::log('login', 'collaborator', $collab->id, [], $collab->cabinet_id, ['type' => 'collaborator', 'id' => $collab->id, 'name' => trim("{$collab->first_name} {$collab->last_name}")]);
 
             return response()->json([
                 'success' => true,

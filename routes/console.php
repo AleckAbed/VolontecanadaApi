@@ -19,6 +19,10 @@ Schedule::command('backup:verify')->dailyAt('04:00')->timezone('America/Toronto'
     ->when(fn () => app()->isProduction() || filled(config('backup.encryption_key')));
 Schedule::command('queue:prune-failed --hours=720')->weekly();
 Schedule::command('sanctum:prune-expired --hours=48')->daily();
+// Journal d'activité (2.6) : entrées plus anciennes que AUDIT_KEEP_DAYS supprimées chaque mois.
+Schedule::call(function () {
+    \Illuminate\Support\Facades\DB::table('audit_logs')->where('created_at', '<', now()->subDays(config('audit.keep_days')))->delete();
+})->name('audit:prune')->monthly();
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());

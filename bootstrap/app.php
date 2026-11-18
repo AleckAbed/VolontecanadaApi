@@ -24,6 +24,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'cabinet' => \App\Http\Middleware\ResolveCabinetFromUser::class,
             'cabinet.code' => \App\Http\Middleware\ResolveCabinetFromCode::class,
             'role' => \App\Http\Middleware\EnsureAdminRole::class,
+            'audit' => \App\Http\Middleware\AuditAccess::class,
+            'two-factor' => \App\Http\Middleware\EnsureTwoFactor::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
