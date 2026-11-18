@@ -9,6 +9,8 @@ use App\Models\AvailabilityRule;
 use App\Models\BookingService;
 use App\Models\Cabinet;
 use App\Services\Booking\AppointmentScheduler;
+use App\Services\Booking\SlotFinder;
+use Carbon\CarbonImmutable;
 use App\Services\Calendar\CalendarGateway;
 use App\Services\MandateService;
 use App\Support\Roles;
@@ -166,6 +168,10 @@ class BookingAdminController extends Controller
             'meeting_mode' => $a->meeting_mode,
             'meeting_url' => $a->meeting_url,
             'in_google' => (bool) $a->google_event_id,
+            'dossier_id' => $a->dossier_id,
+            'outcome' => $a->outcome,
+            'staff_notes' => $a->staff_notes,
+            'reschedule_count' => $a->reschedule_count,
         ])->values()]);
     }
 
@@ -296,5 +302,84 @@ class BookingAdminController extends Controller
             'is_active' => $s->is_active,
             'sort_order' => $s->sort_order,
         ];
+    }
+
+    /** Créneaux libres pour déplacer un rendez-vous (personnel : pas de limite de déplacements). */
+    public function rescheduleSlots(Request $request, int $id, SlotFinder $finder)
+    {
+        $a = Appointment::findOrFail($id);
+        $data = $request->validate(['from' => ['nullable', 'date_format:Y-m-d'], 'days' => ['nullable', 'integer', 'between:1,14']]);
+
+        return response()->json(['success' => true, 'data' => $finder->window(
+            Cabinet::findOrFail($a->cabinet_id), BookingService::findOrFail($a->booking_service_id), $data['from'] ?? null, $data['days'] ?? null, $a,
+        )]);
+    }
+
+    public function rescheduleAppointment(Request $request, int $id, AppointmentScheduler $scheduler)
+    {
+        $a = Appointment::findOrFail($id);
+        if ($a->status !== 'confirmed' || $a->starts_at->lt(now())) {
+            return response()->json(['success' => false, 'message' => 'Seul un rendez-vous confirmé et à venir peut être déplacé.'], 422);
+        }
+        $data = $request->validate(['start' => ['required', 'date']]);
+        try {
+            $scheduler->reschedule($a, CarbonImmutable::parse($data['start'])->utc(), 'staff');
+        } catch (\RuntimeException $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 409);
+        }
+
+        return response()->json(['success' => true, 'message' => 'Rendez-vous déplacé, le client a reçu la nouvelle invitation.']);
+    }
+
+    /** Suivi d'un rendez-vous (3.11) : issue, notes du personnel, dossier lié. */
+    public function followUp(Request $request, int $id)
+    {
+        $a = Appointment::findOrFail($id);
+        $data = $request->validate([
+            'outcome' => ['nullable', Rule::in(array_keys(Appointment::OUTCOMES))],
+            'staff_notes' => ['nullable', 'string', 'max:10000'],
+            'dossier_id' => ['nullable', 'integer', CabinetRule::exists('dossiers')],
+        ]);
+        if (! empty($data['dossier_id']) && $a->client_id
+            && (int) DB::table('dossiers')->where('id', $data['dossier_id'])->value('client_id') !== (int) $a->client_id) {
+            return response()->json(['success' => false, 'message' => 'Ce dossier n’appartient pas au client du rendez-vous.'], 422);
+        }
+        if (! empty($data['outcome']) && $a->starts_at->isFuture()) {
+            return response()->json(['success' => false, 'message' => 'L’issue se note une fois le rendez-vous passé.'], 422);
+        }
+        $a->fill($data);
+        if ($a->isDirty('outcome')) {
+            $a->outcome_at = $a->outcome ? now() : null;
+        }
+        $a->save();
+
+        return response()->json(['success' => true, 'message' => 'Suivi du rendez-vous enregistré.']);
+    }
+
+    /** Rendez-vous du client d'un dossier : ceux liés au dossier, puis les autres du client. */
+    public function forDossier(int $id)
+    {
+        $dossier = \App\Models\Dossier::findOrFail($id);
+        $tz = Cabinet::find(CurrentCabinet::require())?->timezone ?: 'America/Toronto';
+        $items = Appointment::with(['service:id,name', 'host:id,name'])
+            ->where(fn ($q) => $q->where('dossier_id', $dossier->id)
+                ->orWhere(fn ($q) => $q->whereNull('dossier_id')->where('client_id', $dossier->client_id)))
+            ->whereIn('status', ['confirmed', 'cancelled'])
+            ->orderByDesc('starts_at')->limit(50)->get();
+
+        return response()->json(['success' => true, 'data' => $items->map(fn (Appointment $a) => [
+            'id' => $a->id,
+            'service' => $a->service?->name,
+            'host' => $a->host?->name,
+            'local_label' => $a->starts_at->copy()->setTimezone($tz)->locale('fr_CA')->isoFormat('ddd D MMM YYYY, HH:mm'),
+            'starts_at' => $a->starts_at->toIso8601String(),
+            'is_past' => $a->starts_at->isPast(),
+            'status' => $a->status,
+            'outcome' => $a->outcome,
+            'staff_notes' => $a->staff_notes,
+            'client_notes' => $a->notes,
+            'linked' => $a->dossier_id === $dossier->id,
+            'dossier_id' => $a->dossier_id,
+        ])]);
     }
 }

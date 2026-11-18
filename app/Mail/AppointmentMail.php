@@ -21,6 +21,7 @@ class AppointmentMail extends QueuedMail
         return new Envelope(
             subject: match ($this->kind) {
                 'cancelled' => "Rendez-vous annulé — {$cabinet}",
+                'rescheduled' => "Rendez-vous déplacé au {$this->localStart()->locale('fr_CA')->isoFormat('D MMMM [à] HH:mm')} — {$cabinet}",
                 'reminder' => "Rappel : rendez-vous le {$this->localStart()->locale('fr_CA')->isoFormat('D MMMM [à] HH:mm')} — {$cabinet}",
                 default => "Rendez-vous confirmé le {$this->localStart()->locale('fr_CA')->isoFormat('D MMMM [à] HH:mm')} — {$cabinet}",
             },
@@ -43,6 +44,7 @@ class AppointmentMail extends QueuedMail
                 'location' => $service?->location,
                 'isCancelled' => $this->kind === 'cancelled',
                 'isReminder' => $this->kind === 'reminder',
+                'isRescheduled' => $this->kind === 'rescheduled',
                 'manageUrl' => rtrim(config('app.frontend_url'), '/') . '/rendez-vous/' . $this->appointment->public_token,
             ],
         );
@@ -50,7 +52,7 @@ class AppointmentMail extends QueuedMail
 
     public function attachments(): array
     {
-        if ($this->kind !== 'confirmed') {
+        if (! in_array($this->kind, ['confirmed', 'rescheduled'], true)) {
             return [];
         }
 
@@ -79,6 +81,7 @@ class AppointmentMail extends QueuedMail
             'METHOD:REQUEST',
             'BEGIN:VEVENT',
             "UID:appointment-{$a->id}@" . parse_url(config('app.url'), PHP_URL_HOST),
+            'SEQUENCE:' . (int) $a->reschedule_count,
             'DTSTAMP:' . now('UTC')->format('Ymd\THis\Z'),
             'DTSTART:' . $a->starts_at->copy()->utc()->format('Ymd\THis\Z'),
             'DTEND:' . $a->ends_at->copy()->utc()->format('Ymd\THis\Z'),

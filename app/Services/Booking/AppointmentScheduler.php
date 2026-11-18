@@ -127,6 +127,61 @@ class AppointmentScheduler
         }
     }
 
+    /**
+     * Déplace un rendez-vous confirmé vers un autre créneau libre de la même prestation :
+     * l'événement Google est recréé, le client reçoit une nouvelle invitation et le rappel
+     * de la veille repartira pour la nouvelle date. La facture éventuelle ne change pas.
+     */
+    public function reschedule(Appointment $appointment, CarbonImmutable $newStartUtc, string $by): Appointment
+    {
+        $service = BookingService::findOrFail($appointment->booking_service_id);
+        $cabinet = Cabinet::findOrFail($appointment->cabinet_id);
+        $before = $this->localLabel($appointment);
+
+        DB::transaction(function () use ($appointment, $service, $cabinet, $newStartUtc) {
+            Admin::acrossCabinets()->whereKey($appointment->host_admin_id)->lockForUpdate()->first();
+            if (! $this->slots->isAvailable($cabinet, $service, $newStartUtc, $appointment)) {
+                throw new RuntimeException('Ce créneau n\'est plus disponible. Choisissez-en un autre.');
+            }
+            $appointment->forceFill([
+                'starts_at' => $newStartUtc,
+                'ends_at' => $newStartUtc->addMinutes($appointment->starts_at->diffInMinutes($appointment->ends_at)),
+                'reminder_sent_at' => null,
+                'reschedule_count' => $appointment->reschedule_count + 1,
+            ])->save();
+        });
+
+        $host = Admin::find($appointment->host_admin_id);
+        if ($host && $appointment->google_event_id) {
+            try {
+                $this->calendar->deleteEvent($host, $appointment->google_event_id);
+            } catch (\Throwable $e) {
+                Log::warning('Suppression de l\'ancien événement Google impossible', ['appointment_id' => $appointment->id, 'error' => $e->getMessage()]);
+            }
+            $appointment->forceFill(['google_event_id' => null])->save();
+        }
+        if ($host?->google_refresh_token && $this->calendar->isConfigured()) {
+            try {
+                $event = $this->calendar->createEvent($host, $appointment, ($service->name ?? 'Rendez-vous') . " — {$appointment->name}",
+                    trim(($appointment->notes ?? '') . "\n\nRendez-vous déplacé."), $appointment->meeting_mode === 'video');
+                $appointment->forceFill(['google_event_id' => $event['event_id'], 'meeting_url' => $event['meeting_url'] ?? $appointment->meeting_url])->save();
+            } catch (\Throwable $e) {
+                Log::warning('Ajout à Google Agenda impossible', ['appointment_id' => $appointment->id, 'error' => $e->getMessage()]);
+            }
+        }
+
+        $this->sendMail($appointment, 'rescheduled');
+        $this->notifications->notify(
+            [$appointment->host_admin_id],
+            'appointment_rescheduled',
+            "Rendez-vous déplacé : {$appointment->name}",
+            "{$before} → " . $this->localLabel($appointment) . ($by === 'client' ? ' (par le client)' : ''),
+            '/admin/rendez-vous',
+        );
+
+        return $appointment->fresh();
+    }
+
     public function cancel(Appointment $appointment, string $by): void
     {
         if ($appointment->status === 'cancelled') {

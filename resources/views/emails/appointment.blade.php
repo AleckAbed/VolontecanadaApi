@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>{{ $isCancelled ? 'Rendez-vous annulé' : ($isReminder ? 'Rappel de rendez-vous' : 'Rendez-vous confirmé') }} — {{ $cabinetName }}</title>
+    <title>{{ $isCancelled ? 'Rendez-vous annulé' : ($isReminder ? 'Rappel de rendez-vous' : ($isRescheduled ? 'Rendez-vous déplacé' : 'Rendez-vous confirmé')) }} — {{ $cabinetName }}</title>
     <style>
         body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 620px; margin: 0 auto; padding: 20px; background-color: #fafafa; }
         .header { background: linear-gradient(135deg, {{ $brand['color'] }} 0%, {{ $brand['color_dark'] }} 100%); color: white; padding: 24px; text-align: center; border-radius: 8px 8px 0 0; }
@@ -17,7 +17,7 @@
     <div class="header">
         @include('emails.partials.logo')
         <h1 style="margin:0;font-size:22px">{{ $cabinetName }}</h1>
-        <p style="margin:6px 0 0;opacity:.9">{{ $isCancelled ? 'Rendez-vous annulé' : ($isReminder ? 'Rappel de rendez-vous' : 'Rendez-vous confirmé') }}</p>
+        <p style="margin:6px 0 0;opacity:.9">{{ $isCancelled ? 'Rendez-vous annulé' : ($isReminder ? 'Rappel de rendez-vous' : ($isRescheduled ? 'Rendez-vous déplacé' : 'Rendez-vous confirmé')) }}</p>
     </div>
 
     <div class="content">
@@ -41,6 +41,8 @@
         @else
             @if ($isReminder)
             <p>Nous vous rappelons votre rendez-vous ci-dessus.
+            @elseif ($isRescheduled)
+            <p>Votre rendez-vous a été déplacé à la date ci-dessus. L’invitation jointe (fichier .ics) met à jour votre agenda.
             @else
             <p>L’invitation jointe (fichier .ics) l’ajoute à votre agenda en un clic.
             @endif

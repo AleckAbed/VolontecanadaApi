@@ -104,6 +104,10 @@ Route::prefix('admin')->group(function () {
         Route::get('/booking', [BookingAdminController::class, 'overview']);
         Route::get('/booking/appointments', [BookingAdminController::class, 'appointments']);
         Route::post('/booking/appointments/{id}/cancel', [BookingAdminController::class, 'cancelAppointment']);
+        Route::get('/booking/appointments/{id}/slots', [BookingAdminController::class, 'rescheduleSlots']);
+        Route::post('/booking/appointments/{id}/reschedule', [BookingAdminController::class, 'rescheduleAppointment']);
+        Route::put('/booking/appointments/{id}/follow-up', [BookingAdminController::class, 'followUp']);
+        Route::get('/dossiers/{id}/appointments', [BookingAdminController::class, 'forDossier']);
         Route::get('/booking/availability', [BookingAdminController::class, 'availability']);
         Route::put('/booking/availability', [BookingAdminController::class, 'updateAvailability']);
         Route::post('/google/connect', [BookingAdminController::class, 'googleConnect']);
@@ -340,6 +344,8 @@ Route::middleware('throttle:public-read')->group(function () {
 });
 Route::middleware('throttle:public-write')->post('/booking/{slug}/appointments', [PublicBookingController::class, 'book']);
 Route::middleware(['throttle:public-read', 'cabinet.code:appointment'])->group(function () {
+    Route::get('/appointments/public/{token}/slots', [PublicBookingController::class, 'rescheduleSlots']);
+    Route::post('/appointments/public/{token}/reschedule', [PublicBookingController::class, 'reschedule']);
     Route::get('/appointments/public/{token}', [PublicBookingController::class, 'manage']);
     Route::post('/appointments/public/{token}/cancel', [PublicBookingController::class, 'cancel']);
 });
