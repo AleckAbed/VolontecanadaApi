@@ -179,6 +179,7 @@ class TeamController extends Controller
             'invitation_expires_at' => $pending && $a->access_token_purpose === AdminAccessTokens::INVITE
                 ? $a->access_token_expires_at?->toIso8601String() : null,
             'last_login_at' => $a->last_login_at?->toIso8601String(),
+            'two_factor' => $a->hasTwoFactor(),
             'is_me' => $viewer && $viewer->id === $a->id,
         ];
     }

@@ -18,6 +18,8 @@ use App\Http\Controllers\Api\ClientPortalController;
 use App\Http\Controllers\Api\ClientDataController;
 use App\Http\Controllers\Api\ComplianceController;
 use App\Http\Controllers\Api\CabinetProfileController;
+use App\Http\Controllers\Api\TwoFactorController;
+use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\FieldMapController;
 use App\Http\Controllers\Api\Platform\PlatformAuthController;
 use App\Http\Controllers\Api\Platform\PlatformCabinetController;
@@ -60,6 +62,9 @@ use Illuminate\Support\Facades\Route;
 // Routes d'authentification ADMIN
 Route::prefix('admin')->group(function () {
     Route::middleware('throttle:login')->post('/login', [AdminAuthController::class, 'login']);
+    // Double authentification (2.7) : second temps de la connexion
+    Route::middleware('throttle:login')->post('/login/two-factor', [TwoFactorController::class, 'verifyLogin']);
+    Route::middleware('throttle:login')->post('/login/two-factor/resend', [TwoFactorController::class, 'resendLoginCode']);
 
     // Liens d'accès du personnel : mot de passe oublié, invitation dans l'équipe
     Route::middleware('throttle:public-verify')->group(function () {
@@ -69,7 +74,7 @@ Route::prefix('admin')->group(function () {
     });
 
     // Routes protégées pour les admins
-    Route::middleware(['auth:admin', 'cabinet'])->group(function () {
+    Route::middleware(['auth:admin', 'cabinet', 'two-factor', 'audit'])->group(function () {
         Route::post('/logout', [AdminAuthController::class, 'logout']);
         Route::get('/me', [AdminAuthController::class, 'me']);
 
@@ -114,6 +119,21 @@ Route::prefix('admin')->group(function () {
         Route::get('/mandates/preview', [MandateController::class, 'preview']);
         Route::post('/mandates', [MandateController::class, 'store']);
         Route::post('/mandates/{id}/void', [MandateController::class, 'void']);
+
+        // Double authentification de la personne connectée (2.7)
+        Route::get('/two-factor', [TwoFactorController::class, 'status']);
+        Route::middleware('throttle:10,1')->group(function () {
+            Route::post('/two-factor/setup', [TwoFactorController::class, 'setup']);
+            Route::post('/two-factor/confirm', [TwoFactorController::class, 'confirm']);
+            Route::post('/two-factor/disable', [TwoFactorController::class, 'disable']);
+            Route::post('/two-factor/recovery-codes', [TwoFactorController::class, 'regenerateRecoveryCodes']);
+        });
+        // Gestionnaires : 2FA obligatoire, réinitialisation d'un membre, journal d'activité (2.6)
+        Route::middleware('role:owner,admin')->group(function () {
+            Route::put('/cabinet/security', [TwoFactorController::class, 'setRequirement']);
+            Route::post('/team/{id}/reset-two-factor', [TwoFactorController::class, 'resetMember']);
+            Route::get('/audit-logs', [AuditLogController::class, 'index']);
+        });
 
         // Profil et image de marque du cabinet (1.9)
         Route::get('/cabinet/profile', [CabinetProfileController::class, 'show']);
@@ -367,7 +387,7 @@ Route::prefix('client')->group(function () {
     });
 
     // Routes protégées pour les clients
-    Route::middleware(['auth:client', 'cabinet'])->group(function () {
+    Route::middleware(['auth:client', 'cabinet', 'audit'])->group(function () {
         Route::post('/logout', [ClientAuthController::class, 'logout']);
         Route::get('/me', [ClientAuthController::class, 'me']);
 
@@ -439,7 +459,7 @@ Route::prefix('collaborator')->group(function () {
         Route::post('/activate', [CollaboratorController::class, 'activate']);
     });
 
-    Route::middleware(['auth:collaborator', 'cabinet'])->group(function () {
+    Route::middleware(['auth:collaborator', 'cabinet', 'audit'])->group(function () {
         Route::post('/logout', [CollaboratorAuthController::class, 'logout']);
         Route::get('/me', [CollaboratorAuthController::class, 'me']);
 

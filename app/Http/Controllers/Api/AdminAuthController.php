@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Concerns\IssuesAuthCookie;
 use App\Http\Controllers\Controller;
+use App\Support\Audit;
 use App\Models\Admin;
 use App\Models\Cabinet;
 use App\Support\Roles;
@@ -35,6 +36,9 @@ class AdminAuthController extends Controller
 
             // Membre invité sans mot de passe encore choisi : mêmes erreurs qu'un mauvais mot de passe.
             if (!$admin || !$admin->password || !Hash::check($request->password, $admin->password)) {
+                if ($admin) {
+                    Audit::log('login_failed', 'admin', $admin->id, [], $admin->cabinet_id, ['type' => 'public', 'id' => null, 'name' => 'Tentative de connexion']);
+                }
                 throw ValidationException::withMessages([
                     'email' => ['Les informations d\'identification sont incorrectes.'],
                 ]);
@@ -52,6 +56,13 @@ class AdminAuthController extends Controller
                     'email' => ['Ce cabinet est suspendu. Contactez le support de la plateforme.'],
                 ]);
             }
+
+            // Double authentification (2.7) : la session ne s'ouvre qu'après le code.
+            if ($admin->hasTwoFactor()) {
+                return TwoFactorController::startChallenge($admin);
+            }
+
+            Audit::log('login', 'admin', $admin->id, [], $admin->cabinet_id, ['type' => 'admin', 'id' => $admin->id, 'name' => $admin->name]);
 
             return $this->startSession($admin, 'Connexion réussie');
         } catch (ValidationException $e) {
@@ -92,6 +103,7 @@ class AdminAuthController extends Controller
     {
         $user = $request->user('admin');
         if ($user) {
+            Audit::log('logout', 'admin', $user->id);
             $user->currentAccessToken()?->delete();
         }
 
@@ -149,6 +161,10 @@ class AdminAuthController extends Controller
             'role_label' => Roles::label($admin->role),
             'permissions' => Roles::permissions($admin->role),
             'cabinet' => $cabinet ? ['id' => $cabinet->id, 'name' => $cabinet->name, 'slug' => $cabinet->slug, 'branding' => $cabinet->branding()] : null,
+            'two_factor' => [
+                'enabled' => $admin->hasTwoFactor(),
+                'required' => (bool) $cabinet?->require_two_factor,
+            ],
         ];
     }
 }
