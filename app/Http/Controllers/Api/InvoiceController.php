@@ -183,6 +183,8 @@ class InvoiceController extends Controller
                 'phone' => $cabinet->phone,
                 'gst_number' => $cabinet->gst_number,
                 'qst_number' => $cabinet->qst_number,
+                'website' => $cabinet->website,
+                'branding' => $cabinet->branding(),
             ] : null,
             'public_url' => rtrim(config('app.frontend_url'), '/') . '/facture/' . $i->public_token,
         ];

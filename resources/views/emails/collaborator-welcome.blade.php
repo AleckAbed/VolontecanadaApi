@@ -2,13 +2,13 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Activez votre compte — Volonté Canada</title>
+    <title>Activez votre compte — {{ $brand['name'] }}</title>
     <style>
         body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 620px; margin: 0 auto; padding: 20px; background-color: #fafafa; }
-        .header { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); color: white; padding: 28px; text-align: center; border-radius: 8px 8px 0 0; }
+        .header { background: linear-gradient(135deg, {{ $brand['color'] }} 0%, {{ $brand['color_dark'] }} 100%); color: white; padding: 28px; text-align: center; border-radius: 8px 8px 0 0; }
         .content { background-color: #ffffff; padding: 30px; border: 1px solid #e5e7eb; }
-        .button { display: inline-block; background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); color: #ffffff !important; padding: 14px 32px; text-decoration: none; border-radius: 8px; margin: 20px 0; font-weight: bold; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25); }
-        .info-card { background: #eff6ff; border-left: 4px solid #2563eb; padding: 14px 16px; margin: 18px 0; border-radius: 4px; font-size: 14px; }
+        .button { display: inline-block; background: linear-gradient(135deg, {{ $brand['color'] }} 0%, {{ $brand['color_dark'] }} 100%); color: #ffffff !important; padding: 14px 32px; text-decoration: none; border-radius: 8px; margin: 20px 0; font-weight: bold; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); }
+        .info-card { background: #eff6ff; border-left: 4px solid {{ $brand['color'] }}; padding: 14px 16px; margin: 18px 0; border-radius: 4px; font-size: 14px; }
         .info-card strong { color: #1e40af; }
         .credentials { background: #f8fafc; border: 2px dashed #cbd5e1; padding: 16px; margin: 16px 0; border-radius: 8px; }
         .credentials .label { font-size: 11px; font-weight: 600; text-transform: uppercase; color: #64748b; letter-spacing: 1px; }
@@ -21,14 +21,15 @@
 </head>
 <body>
     <div class="header">
-        <h1 style="margin:0">Volonté Canada</h1>
+        @include('emails.partials.logo')
+        <h1 style="margin:0">{{ $brand['name'] }}</h1>
         <p style="margin:6px 0 0;opacity:.9">Activez votre espace collaborateur</p>
     </div>
 
     <div class="content">
         <p>Bonjour <strong>{{ $collaborator->first_name }} {{ $collaborator->last_name }}</strong>,</p>
 
-        <p>Un compte collaborateur a été créé pour vous sur la plateforme Volonté Canada. Pour activer votre accès, vous devez définir votre propre mot de passe en cliquant sur le bouton ci-dessous.</p>
+        <p>Un compte collaborateur a été créé pour vous sur la plateforme de {{ $brand['name'] }}. Pour activer votre accès, vous devez définir votre propre mot de passe en cliquant sur le bouton ci-dessous.</p>
 
         <div class="credentials">
             <div class="label">Votre identifiant de connexion</div>
@@ -41,7 +42,7 @@
 
         <p style="font-size:13px;color:#64748b;text-align:center;word-break:break-all">
             Ou copiez ce lien dans votre navigateur :<br>
-            <span style="color:#2563eb">{{ $activationUrl }}</span>
+            <span style="color:{{ $brand['color'] }}">{{ $activationUrl }}</span>
         </p>
 
         <div class="info-card">
@@ -60,12 +61,12 @@
         </div>
 
         <div class="info-card" style="background:#f0fdf4;border-left-color:#10b981;margin-top:24px">
-            <strong style="color:#047857">💡 Pour vos prochaines connexions :</strong>
+            <strong style="color:{{ $brand['color_dark'] }}">💡 Pour vos prochaines connexions :</strong>
             <p style="margin:8px 0 4px;font-size:13px;line-height:1.5">
                 Une fois votre compte activé, accédez à votre espace collaborateur à tout moment via :
             </p>
             <p style="margin:8px 0 0;word-break:break-all">
-                <a href="{{ $loginUrl }}" style="color:#047857;font-weight:bold;text-decoration:none">{{ $loginUrl }}</a>
+                <a href="{{ $loginUrl }}" style="color:{{ $brand['color_dark'] }};font-weight:bold;text-decoration:none">{{ $loginUrl }}</a>
             </p>
             <p style="margin:8px 0 0;font-size:12px;color:#475569">
                 Ajoutez ce lien à vos favoris pour un accès rapide.
@@ -74,7 +75,7 @@
     </div>
 
     <div class="footer">
-        Volonté Canada — Cabinet d'immigration<br>
+        {{ $brand['name'] }} — Cabinet d'immigration<br>
         Cet email vous a été envoyé automatiquement, merci de ne pas y répondre.
     </div>
 </body>

@@ -14,7 +14,8 @@ class CollaboratorDossierAssignedMail extends QueuedMail
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Nouveau dossier qui vous est assigné — Volonté Canada',
+            subject: 'Nouveau dossier qui vous est assigné — '
+                . (\App\Models\Cabinet::find($this->collaborator->cabinet_id)?->name ?? config('app.name')),
         );
     }
 

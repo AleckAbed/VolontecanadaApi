@@ -2,28 +2,29 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Invitation Volonté Canada</title>
+    <title>Invitation {{ $brand['name'] }}</title>
     <style>
         body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 620px; margin: 0 auto; padding: 20px; background-color: #fafafa; }
-        .header { background: linear-gradient(135deg, #b91c1c 0%, #991b1b 100%); color: white; padding: 28px; text-align: center; border-radius: 8px 8px 0 0; }
+        .header { background: linear-gradient(135deg, {{ $brand['color'] }} 0%, {{ $brand['color_dark'] }} 100%); color: white; padding: 28px; text-align: center; border-radius: 8px 8px 0 0; }
         .content { background-color: #ffffff; padding: 30px; border: 1px solid #e5e7eb; }
-        .button { display: inline-block; background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%); color: #ffffff !important; padding: 14px 32px; text-decoration: none; border-radius: 8px; margin: 20px 0; font-weight: bold; box-shadow: 0 4px 12px rgba(185, 28, 28, 0.25); }
+        .button { display: inline-block; background: linear-gradient(135deg, {{ $brand['color'] }} 0%, {{ $brand['color'] }} 100%); color: #ffffff !important; padding: 14px 32px; text-decoration: none; border-radius: 8px; margin: 20px 0; font-weight: bold; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); }
         .item-list { margin: 20px 0; padding: 0; list-style: none; }
         .item-list li { background: #fff; border: 1px solid #e5e7eb; padding: 12px 16px; border-radius: 6px; margin-bottom: 8px; }
         .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
-        .badge-form { background: #fee2e2; color: #991b1b; }
+        .badge-form { background: #fee2e2; color: {{ $brand['color_dark'] }}; }
         .badge-doc { background: #fff7ed; color: #9a3412; }
         .warning { background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 14px 16px; margin: 20px 0; border-radius: 4px; }
         .footer { background-color: #fef2f2; padding: 18px; text-align: center; font-size: 12px; color: #6b7280; border-radius: 0 0 8px 8px; border-top: 2px solid #fee2e2; }
-        .msg { background: #fff; border-left: 3px solid #b91c1c; padding: 12px 16px; margin: 18px 0; font-style: italic; }
-        .code-box { background: #fff7f7; border: 2px dashed #b91c1c; padding: 16px; margin: 14px 0; text-align: center; font-family: 'Courier New', monospace; font-size: 14px; font-weight: bold; color: #991b1b; border-radius: 8px; word-break: break-all; letter-spacing: 0.5px; }
-        .code-label { font-size: 12px; color: #b91c1c; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; display: block; }
-        .info { background: #fef2f2; border-left: 4px solid #b91c1c; padding: 14px 16px; margin: 18px 0; border-radius: 4px; font-size: 14px; }
+        .msg { background: #fff; border-left: 3px solid {{ $brand['color'] }}; padding: 12px 16px; margin: 18px 0; font-style: italic; }
+        .code-box { background: #fff7f7; border: 2px dashed {{ $brand['color'] }}; padding: 16px; margin: 14px 0; text-align: center; font-family: 'Courier New', monospace; font-size: 14px; font-weight: bold; color: {{ $brand['color_dark'] }}; border-radius: 8px; word-break: break-all; letter-spacing: 0.5px; }
+        .code-label { font-size: 12px; color: {{ $brand['color'] }}; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; display: block; }
+        .info { background: #fef2f2; border-left: 4px solid {{ $brand['color'] }}; padding: 14px 16px; margin: 18px 0; border-radius: 4px; font-size: 14px; }
     </style>
 </head>
 <body>
     <div class="header">
-        <h1 style="margin:0">Volonté Canada</h1>
+        @include('emails.partials.logo')
+        <h1 style="margin:0">{{ $brand['name'] }}</h1>
         <p style="margin:6px 0 0;opacity:.9">Cabinet d'immigration</p>
     </div>
 

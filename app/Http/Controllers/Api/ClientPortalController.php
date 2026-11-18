@@ -84,7 +84,7 @@ class ClientPortalController extends Controller
             'success' => true,
             'data' => [
                 'client' => ['first_name' => $client->first_name, 'last_name' => $client->last_name, 'email' => $client->email],
-                'cabinet' => ['name' => Cabinet::find($client->cabinet_id)?->name],
+                'cabinet' => ($c = Cabinet::find($client->cabinet_id)) ? ['name' => $c->name, 'branding' => $c->branding()] : ['name' => null, 'branding' => null],
                 'dossiers' => $dossiers->values(),
                 'tasks' => $tasks->values(),
                 'members' => $members->map(fn ($m) => ['id' => $m->id, 'name' => trim("{$m->first_name} {$m->last_name}")])->values(),

@@ -80,6 +80,7 @@ class MandateController extends Controller
 
         return response()->json(['success' => true, 'data' => [
             'cabinet' => Cabinet::find($m->cabinet_id)?->name,
+            'branding' => Cabinet::find($m->cabinet_id)?->branding(),
             'client_name' => trim(($m->client?->first_name ?? '') . ' ' . ($m->client?->last_name ?? '')),
             'title' => $m->title,
             'body' => $m->body,

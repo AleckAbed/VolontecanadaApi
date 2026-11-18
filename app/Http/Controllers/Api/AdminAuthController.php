@@ -148,7 +148,7 @@ class AdminAuthController extends Controller
             'role' => $admin->role,
             'role_label' => Roles::label($admin->role),
             'permissions' => Roles::permissions($admin->role),
-            'cabinet' => $cabinet ? ['id' => $cabinet->id, 'name' => $cabinet->name] : null,
+            'cabinet' => $cabinet ? ['id' => $cabinet->id, 'name' => $cabinet->name, 'slug' => $cabinet->slug, 'branding' => $cabinet->branding()] : null,
         ];
     }
 }

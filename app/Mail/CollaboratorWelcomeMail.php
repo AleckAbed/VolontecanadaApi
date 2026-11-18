@@ -13,7 +13,8 @@ class CollaboratorWelcomeMail extends QueuedMail
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Activez votre accès à l\'espace collaborateur — Volonté Canada',
+            subject: 'Activez votre accès à l\'espace collaborateur — '
+                . (\App\Models\Cabinet::find($this->collaborator->cabinet_id)?->name ?? config('app.name')),
         );
     }
 

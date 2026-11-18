@@ -107,6 +107,7 @@ class ClientAuthController extends Controller
                 'passport_number' => $client->passport_number,
                 'is_active' => $client->is_active,
                 'created_at' => $client->created_at,
+                'cabinet' => ($c = \App\Models\Cabinet::find($client->cabinet_id)) ? ['name' => $c->name, 'branding' => $c->branding()] : null,
             ],
         ]);
     }

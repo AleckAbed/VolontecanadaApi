@@ -35,7 +35,7 @@ class PublicBookingController extends Controller
             ->orderBy('sort_order')->orderBy('id')->get();
 
         return response()->json(['success' => true, 'data' => [
-            'cabinet' => ['name' => $cabinet->name, 'intro' => $cabinet->booking_intro, 'timezone' => $cabinet->timezone ?: 'America/Toronto'],
+            'cabinet' => ['name' => $cabinet->name, 'intro' => $cabinet->booking_intro, 'timezone' => $cabinet->timezone ?: 'America/Toronto', 'branding' => $cabinet->branding()],
             'services' => $services->map(fn (BookingService $s) => [
                 'id' => $s->id,
                 'name' => $s->name,
@@ -128,6 +128,7 @@ class PublicBookingController extends Controller
 
         return response()->json(['success' => true, 'data' => [
             'cabinet' => $cabinet?->name,
+            'branding' => $cabinet?->branding(),
             'booking_url' => $cabinet?->booking_enabled ? '/reserver/' . $cabinet->slug : null,
             'service' => $a->service?->name,
             'name' => $a->name,

@@ -5,7 +5,8 @@
     <title>Votre demande de suppression de données — {{ $cabinetName }}</title>
 </head>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 620px; margin: 0 auto; padding: 20px;">
-    <h1 style="font-size: 20px; color: #1d4ed8;">{{ $cabinetName }}</h1>
+    @include('emails.partials.logo')
+    <h1 style="font-size: 20px; color: {{ $brand['color_dark'] }};">{{ $cabinetName }}</h1>
     <p>Bonjour {{ $name }},</p>
 
     @if ($completed)

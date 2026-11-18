@@ -14,7 +14,7 @@
             padding: 20px;
         }
         .header {
-            background-color: #dc2626;
+            background-color: {{ $brand['color'] }};
             color: white;
             padding: 20px;
             text-align: center;
@@ -27,7 +27,7 @@
         }
         .button {
             display: inline-block;
-            background-color: #dc2626;
+            background-color: {{ $brand['color'] }};
             color: white;
             padding: 12px 30px;
             text-decoration: none;
@@ -37,7 +37,7 @@
         }
         .code-box {
             background-color: #fff;
-            border: 2px solid #dc2626;
+            border: 2px solid {{ $brand['color'] }};
             padding: 15px;
             margin: 20px 0;
             text-align: center;
@@ -64,6 +64,7 @@
 </head>
 <body>
     <div class="header">
+        @include('emails.partials.logo')
         <h1>Formulaire d'Immigration</h1>
     </div>
     

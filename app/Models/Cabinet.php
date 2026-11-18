@@ -22,6 +22,8 @@ class Cabinet extends Model
         'booking_enabled',
         'booking_intro',
         'mandate_text',
+        'brand_color',
+        'website',
     ];
 
     protected $casts = [
@@ -35,6 +37,39 @@ class Cabinet extends Model
     ];
 
     protected $hidden = ['stripe_customer_id', 'stripe_subscription_id', 'stripe_account_id'];
+
+    /** Couleur par défaut quand le cabinet n'en a pas choisi. */
+    public const DEFAULT_COLOR = '#2563eb';
+
+    /**
+     * Image de marque (1.9) : nom, logo (URL publique) et couleurs, pour les courriels,
+     * le portail client et les pages publiques.
+     *
+     * @return array{name:string, logo_url:?string, color:string, color_dark:string, website:?string}
+     */
+    public function branding(): array
+    {
+        $color = $this->brand_color ?: self::DEFAULT_COLOR;
+
+        return [
+            'name' => $this->name,
+            'logo_url' => $this->logo_path
+                ? rtrim((string) config('app.url'), '/') . "/api/cabinets/{$this->slug}/logo?v=" . substr(md5($this->logo_path), 0, 8)
+                : null,
+            'color' => $color,
+            'color_dark' => self::darken($color),
+            'website' => $this->website,
+        ];
+    }
+
+    /** Assombrit une couleur #rrggbb de 20 % (dégradés, survol). */
+    public static function darken(string $hex, float $factor = 0.8): string
+    {
+        $hex = ltrim($hex, '#');
+        $rgb = array_map(fn ($i) => (int) round(hexdec(substr($hex, $i, 2)) * $factor), [0, 2, 4]);
+
+        return sprintf('#%02x%02x%02x', ...$rgb);
+    }
 
     public function admins(): HasMany
     {
