@@ -21,6 +21,8 @@ use App\Http\Controllers\Api\CabinetProfileController;
 use App\Http\Controllers\Api\TwoFactorController;
 use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\HealthController;
+use App\Http\Controllers\Api\CatalogController;
+use App\Http\Controllers\Api\Platform\PlatformCatalogController;
 use App\Http\Controllers\Api\NotificationPreferenceController;
 use App\Http\Controllers\Api\FieldMapController;
 use App\Http\Controllers\Api\Platform\PlatformAuthController;
@@ -244,6 +246,9 @@ Route::prefix('admin')->group(function () {
         // Modèles de documents PDF
         Route::get('/document-templates', [DocumentController::class, 'indexTemplates']);
         Route::post('/document-templates', [DocumentController::class, 'storeTemplate'])->middleware('role:owner,admin');
+        // Catalogue de modèles prêts à l'emploi publiés par la plateforme
+        Route::get('/catalog', [CatalogController::class, 'index']);
+        Route::post('/catalog/{id}/import', [CatalogController::class, 'import'])->middleware('role:owner,admin');
         Route::get('/document-templates/{id}', [DocumentController::class, 'showTemplate']);
         Route::put('/document-templates/{id}', [DocumentController::class, 'updateTemplate'])->middleware('role:owner,admin');
         Route::put('/document-templates/{id}/schema', [DocumentController::class, 'updateTemplateSchema'])->middleware('role:owner,admin');
@@ -386,6 +391,12 @@ Route::prefix('platform')->group(function () {
         Route::post('/logout', [PlatformAuthController::class, 'logout']);
         Route::get('/cabinets', [PlatformCabinetController::class, 'index']);
         Route::patch('/cabinets/{id}', [PlatformCabinetController::class, 'update']);
+        // Catalogue de modèles partagé
+        Route::get('/catalog', [PlatformCatalogController::class, 'index']);
+        Route::get('/cabinets/{id}/templates', [PlatformCatalogController::class, 'cabinetTemplates']);
+        Route::post('/catalog', [PlatformCatalogController::class, 'publishFromCabinet']);
+        Route::patch('/catalog/{id}', [PlatformCatalogController::class, 'update']);
+        Route::delete('/catalog/{id}', [PlatformCatalogController::class, 'destroy']);
     });
 });
 
