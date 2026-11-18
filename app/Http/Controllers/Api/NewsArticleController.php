@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\NewsArticle;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use App\Support\Tenancy\CabinetRule;
 
 class NewsArticleController extends Controller
 {
@@ -117,8 +118,8 @@ class NewsArticleController extends Controller
             'summary' => 'nullable|string',
             'content' => 'nullable|string',
             'thumbnail' => 'nullable|string',
-            'category_id' => 'nullable|exists:categories,id',
-            'source_id' => 'nullable|exists:news_sources,id',
+            'category_id' => ['nullable', CabinetRule::exists('categories')],
+            'source_id' => ['nullable', CabinetRule::exists('news_sources')],
             'audio_url' => 'nullable|string',
             'read_time' => 'nullable|string|max:50',
             'is_featured' => 'nullable|boolean',

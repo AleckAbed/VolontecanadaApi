@@ -14,6 +14,8 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use App\Support\Tenancy\CabinetRule;
+use App\Support\Tenancy\CurrentCabinet;
 
 class DossierController extends Controller
 {
@@ -51,10 +53,10 @@ class DossierController extends Controller
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'client_id' => 'required|exists:clients,id',
+            'client_id' => ['required', CabinetRule::exists('clients')],
             'scope' => 'required|in:client,member,family',
-            'family_member_id' => 'required_if:scope,member|nullable|exists:family_members,id',
-            'collaborator_id' => 'nullable|exists:collaborators,id',
+            'family_member_id' => ['required_if:scope,member', 'nullable', CabinetRule::exists('family_members')],
+            'collaborator_id' => ['nullable', CabinetRule::exists('collaborators')],
             'allow_collab_uploads' => 'nullable|boolean',
             'send_base_docs_to_client' => 'nullable|boolean',
             'name' => 'required|string|max:255',
@@ -196,7 +198,7 @@ class DossierController extends Controller
                 continue;
             }
             $extension = pathinfo($tpl->pdf_path, PATHINFO_EXTENSION) ?: 'pdf';
-            $newPath = "dossier-documents/{$dossier->id}/" . uniqid('auto_') . '.' . $extension;
+            $newPath = CurrentCabinet::storagePath("dossier-documents/{$dossier->id}/" . uniqid('auto_') . '.' . $extension);
             Storage::disk('local')->copy($tpl->pdf_path, $newPath);
 
             DossierDocument::create([
@@ -243,8 +245,8 @@ class DossierController extends Controller
 
         $validator = Validator::make($request->all(), [
             'scope' => 'sometimes|in:client,member,family',
-            'family_member_id' => 'nullable|exists:family_members,id',
-            'collaborator_id' => 'nullable|exists:collaborators,id',
+            'family_member_id' => ['nullable', CabinetRule::exists('family_members')],
+            'collaborator_id' => ['nullable', CabinetRule::exists('collaborators')],
             'allow_collab_uploads' => 'nullable|boolean',
             'send_base_docs_to_client' => 'nullable|boolean',
             'name' => 'sometimes|string|max:255',

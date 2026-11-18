@@ -51,9 +51,12 @@ class CollaboratorAuthController extends Controller
                 'password' => 'required',
             ]);
 
-            $collab = Collaborator::where('email', $request->email)->first();
+            // Un même courriel peut être collaborateur de plusieurs cabinets : on
+            // retient le compte dont le mot de passe correspond.
+            $collab = Collaborator::acrossCabinets()->where('email', $request->email)->get()
+                ->first(fn ($c) => $c->password && Hash::check($request->password, $c->password));
 
-            if (!$collab || !Hash::check($request->password, $collab->password)) {
+            if (!$collab) {
                 throw ValidationException::withMessages([
                     'email' => ['Les informations d\'identification sont incorrectes.'],
                 ]);

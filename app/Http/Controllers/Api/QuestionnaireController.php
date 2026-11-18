@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Validator;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\DB;
+use App\Support\Tenancy\CabinetRule;
 
 class QuestionnaireController extends Controller
 {
@@ -22,7 +23,7 @@ class QuestionnaireController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'client_type' => 'required|in:existing,custom',
-            'client_id' => 'required_if:client_type,existing|exists:clients,id',
+            'client_id' => ['required_if:client_type,existing', CabinetRule::exists('clients')],
             'custom_name' => 'required_if:client_type,custom|string|max:255',
             'email' => 'required|email|max:255',
             'phone' => 'required_if:client_type,custom|string|max:20',
@@ -262,6 +263,7 @@ class QuestionnaireController extends Controller
 
         $updated = \DB::table('questionnaire_requests')
             ->where('unique_code', $code)
+            ->where('cabinet_id', \App\Support\Tenancy\CurrentCabinet::require())
             ->update([
                 'form_data' => $jsonToStore,
                 'status' => 'in_progress',

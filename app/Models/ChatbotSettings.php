@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCabinet;
 use Illuminate\Database\Eloquent\Model;
 
 class ChatbotSettings extends Model
 {
+    use BelongsToCabinet;
+
     protected $table = 'chatbot_settings';
 
     protected $fillable = [

@@ -12,6 +12,8 @@ use App\Models\InvitationItem;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use ZipArchive;
+use App\Support\Tenancy\CabinetRule;
+use App\Support\Tenancy\CurrentCabinet;
 
 class DossierSupplementaryFileController extends Controller
 {
@@ -34,7 +36,7 @@ class DossierSupplementaryFileController extends Controller
             'file' => 'required|file|max:51200', // 50 Mo, tout type
         ]);
         $file = $request->file('file');
-        $path = $file->store("dossier-supplementary/{$dossier->id}", 'local');
+        $path = $file->store(CurrentCabinet::storagePath("dossier-supplementary/{$dossier->id}"), 'local');
         $rec = DossierSupplementaryFile::create([
             'dossier_id' => $dossier->id,
             'label' => $request->input('label'),
@@ -72,7 +74,7 @@ class DossierSupplementaryFileController extends Controller
     public function exportZip(Request $request)
     {
         $request->validate([
-            'dossier_id' => 'required|exists:dossiers,id',
+            'dossier_id' => ['required', CabinetRule::exists('dossiers')],
             'items' => 'required|array|min:1',
             'items.*.kind' => 'required|in:ircc,fo,supplementary,client_upload',
             'items.*.id' => 'required|integer',

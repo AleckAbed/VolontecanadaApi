@@ -8,6 +8,7 @@ use App\Models\DossierDocument;
 use App\Models\DossierUpload;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use App\Support\Tenancy\CurrentCabinet;
 
 /**
  * Endpoints exposés au collaborateur connecté (guard `collaborator`).
@@ -236,7 +237,7 @@ class CollaboratorWorkspaceController extends Controller
             Storage::disk('local')->delete($doc->filled_pdf_path);
         }
 
-        $filename = "dossier-documents/{$doc->dossier_id}/filled-{$doc->id}-" . time() . '.pdf';
+        $filename = CurrentCabinet::storagePath("dossier-documents/{$doc->dossier_id}/filled-{$doc->id}-" . time() . '.pdf');
 
         try {
             Storage::disk('local')->put($filename, $pdfContent);
@@ -287,7 +288,7 @@ class CollaboratorWorkspaceController extends Controller
         ]);
         $me = $this->me($request);
         $file = $request->file('file');
-        $path = $file->store("dossier-uploads/{$dossier->id}", 'local');
+        $path = $file->store(CurrentCabinet::storagePath("dossier-uploads/{$dossier->id}"), 'local');
 
         $upload = DossierUpload::create([
             'dossier_id' => $dossier->id,

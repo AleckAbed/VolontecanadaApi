@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCabinet;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class ImmigrationService extends Model
 {
+    use BelongsToCabinet;
+
     use HasFactory;
 
     protected $fillable = [

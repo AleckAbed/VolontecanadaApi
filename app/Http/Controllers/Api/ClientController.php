@@ -8,6 +8,7 @@ use App\Models\FamilyMember;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use App\Support\Tenancy\CabinetRule;
 
 class ClientController extends Controller
 {
@@ -60,7 +61,7 @@ class ClientController extends Controller
             'client_type' => 'required|in:single,family',
             'first_name' => 'required|string|max:255',
             'last_name' => 'required|string|max:255',
-            'email' => 'required|email|unique:clients,email',
+            'email' => ['required', 'email', CabinetRule::unique('clients', 'email')],
             'password' => 'required|string|min:8',
             'phone' => 'nullable|string|max:50',
             'date_of_birth' => 'nullable|date',
@@ -152,7 +153,7 @@ class ClientController extends Controller
             'client_type' => 'sometimes|in:single,family',
             'first_name' => 'sometimes|string|max:255',
             'last_name' => 'sometimes|string|max:255',
-            'email' => 'sometimes|email|unique:clients,email,' . $id,
+            'email' => ['sometimes', 'email', CabinetRule::unique('clients', 'email', $id)],
             'password' => 'nullable|string|min:8',
             'phone' => 'nullable|string|max:50',
             'date_of_birth' => 'nullable|date',

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\ImmigrationService;
 use Illuminate\Http\Request;
+use App\Support\Tenancy\CabinetRule;
 
 class ImmigrationServiceController extends Controller
 {
@@ -20,7 +21,7 @@ class ImmigrationServiceController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'name' => 'required|string|max:255|unique:immigration_services,name',
+            'name' => ['required', 'string', 'max:255', CabinetRule::unique('immigration_services', 'name')],
             'description' => 'nullable|string',
             'category' => 'nullable|string|max:100',
             'duration' => 'nullable|string|max:100',
@@ -37,7 +38,7 @@ class ImmigrationServiceController extends Controller
     {
         $svc = ImmigrationService::findOrFail($id);
         $data = $request->validate([
-            'name' => 'sometimes|required|string|max:255|unique:immigration_services,name,' . $svc->id,
+            'name' => ['sometimes', 'required', 'string', 'max:255', CabinetRule::unique('immigration_services', 'name', $svc->id)],
             'description' => 'nullable|string',
             'category' => 'nullable|string|max:100',
             'duration' => 'nullable|string|max:100',

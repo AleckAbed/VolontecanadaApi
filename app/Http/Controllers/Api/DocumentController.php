@@ -11,6 +11,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use App\Support\Tenancy\CabinetRule;
+use App\Support\Tenancy\CurrentCabinet;
 
 class DocumentController extends Controller
 {
@@ -79,7 +81,7 @@ class DocumentController extends Controller
 
         $admin = $request->user('admin');
 
-        $path = $request->file('pdf')->store('document-templates', 'local');
+        $path = $request->file('pdf')->store(CurrentCabinet::storagePath('document-templates'), 'local');
 
         $template = DocumentTemplate::create([
             'name' => $request->name,
@@ -247,9 +249,9 @@ class DocumentController extends Controller
     public function sendRequest(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'template_id' => 'required|exists:document_templates,id',
-            'client_id' => 'required|exists:clients,id',
-            'dossier_id' => 'nullable|exists:dossiers,id',
+            'template_id' => ['required', CabinetRule::exists('document_templates')],
+            'client_id' => ['required', CabinetRule::exists('clients')],
+            'dossier_id' => ['nullable', CabinetRule::exists('dossiers')],
             'message' => 'nullable|string|max:1000',
             'expires_days' => 'nullable|integer|min:1|max:90',
         ]);
@@ -540,7 +542,7 @@ class DocumentController extends Controller
 
         // Décoder et stocker le PDF final
         $pdfContent = base64_decode($request->pdf_base64);
-        $pdfPath = 'document-filled/' . $docRequest->id . '_' . time() . '.pdf';
+        $pdfPath = CurrentCabinet::storagePath('document-filled/' . $docRequest->id . '_' . time() . '.pdf');
         Storage::disk('local')->put($pdfPath, $pdfContent);
 
         $docRequest->update([

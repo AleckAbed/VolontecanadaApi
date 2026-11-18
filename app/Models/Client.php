@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCabinet;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -9,6 +10,8 @@ use Laravel\Sanctum\HasApiTokens;
 
 class Client extends Authenticatable
 {
+    use BelongsToCabinet;
+
     use HasApiTokens, HasFactory, Notifiable;
 
     /**

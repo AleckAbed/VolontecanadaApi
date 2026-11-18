@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use App\Support\Tenancy\CabinetRule;
+use App\Support\Tenancy\CurrentCabinet;
 
 class FileManagerController extends Controller
 {
@@ -103,7 +105,7 @@ class FileManagerController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
-            'parent_id' => 'nullable|exists:file_folders,id',
+            'parent_id' => ['nullable', CabinetRule::exists('file_folders')],
             'color' => 'nullable|string|max:32',
             'lock_code' => 'nullable|string|regex:/^\d{4}$/',
             'visibility' => 'nullable|in:public,private',
@@ -173,7 +175,7 @@ class FileManagerController extends Controller
         $validator = Validator::make($request->all(), [
             'visibility' => 'required|in:public,private',
             'admin_ids' => 'array',
-            'admin_ids.*' => 'integer|exists:admins,id',
+            'admin_ids.*' => ['integer', CabinetRule::exists('admins')],
         ]);
         if ($validator->fails()) {
             return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
@@ -258,7 +260,7 @@ class FileManagerController extends Controller
     public function uploadItem(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'folder_id' => 'nullable|exists:file_folders,id',
+            'folder_id' => ['nullable', CabinetRule::exists('file_folders')],
             'files'     => 'required',
             'files.*'   => 'file|max:51200', // 50 MB max per file
         ]);
@@ -283,7 +285,7 @@ class FileManagerController extends Controller
 
         foreach ($files as $file) {
             $original = $file->getClientOriginalName();
-            $path = $file->store('file-manager');
+            $path = $file->store(CurrentCabinet::storagePath('file-manager'));
             $item = FileItem::create([
                 'folder_id' => $request->folder_id,
                 'name' => $original,
