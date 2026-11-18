@@ -21,7 +21,10 @@ class AuthCookieToBearer
     public function handle(Request $request, Closure $next)
     {
         if (!$request->headers->has('Authorization')) {
-            $cookieToken = $request->cookie('auth_token');
+            // La console de la plateforme a son propre cookie : les deux sessions
+            // (cabinet et plateforme) peuvent coexister dans le même navigateur.
+            $cookieName = $request->is('api/platform/*') ? 'platform_token' : 'auth_token';
+            $cookieToken = $request->cookie($cookieName);
             if (is_string($cookieToken) && $cookieToken !== '') {
                 $request->headers->set('Authorization', 'Bearer ' . $cookieToken);
             }

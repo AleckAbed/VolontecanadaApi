@@ -87,6 +87,6 @@ class ImmigrationServiceSeeder extends Seeder
             );
         }
 
-        $this->command->info(sprintf('%d services d\'immigration vérifiés / créés.', count($services)));
+        $this->command?->info(sprintf('%d services d\'immigration vérifiés / créés.', count($services)));
     }
 }
