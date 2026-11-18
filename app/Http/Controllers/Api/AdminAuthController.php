@@ -2,57 +2,20 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Concerns\IssuesAuthCookie;
 use App\Http\Controllers\Controller;
 use App\Models\Admin;
+use App\Models\Cabinet;
+use App\Support\Roles;
 use Illuminate\Database\QueryException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
-use Symfony\Component\HttpFoundation\Cookie;
 
 class AdminAuthController extends Controller
 {
-    /**
-     * Nom du cookie HttpOnly qui transporte le token Sanctum.
-     * Lisible uniquement côté serveur — protège contre XSS.
-     */
-    private const AUTH_COOKIE_NAME = 'auth_token';
-    private const AUTH_COOKIE_LIFETIME_DAYS = 7;
-
-    /**
-     * Construit le cookie HttpOnly.
-     *
-     * SameSite :
-     *  - 'lax' en local (HTTP) ou même origine
-     *  - 'none' en prod si l'API et le front sont sur des domaines différents
-     *    (ex: front xxx.vercel.app ↔ API app.volontecanada.ca)
-     *    → SameSite=None EXIGE Secure=true (HTTPS)
-     *
-     * Configurable via .env : AUTH_COOKIE_SAMESITE=none|lax|strict
-     */
-    private function buildAuthCookie(string $token): Cookie
-    {
-        $isSecure = request()->isSecure();
-        $sameSite = env('AUTH_COOKIE_SAMESITE', $isSecure ? 'none' : 'lax');
-
-        return cookie(
-            self::AUTH_COOKIE_NAME,
-            $token,
-            self::AUTH_COOKIE_LIFETIME_DAYS * 24 * 60,
-            '/',
-            null,
-            $isSecure,             // Secure obligatoire si SameSite=None
-            true,                  // HttpOnly — JS ne peut PAS le lire
-            false,
-            $sameSite
-        );
-    }
-
-    /** Cookie d'expiration immédiate (logout). */
-    private function buildForgetAuthCookie(): Cookie
-    {
-        return cookie()->forget(self::AUTH_COOKIE_NAME, '/');
-    }
+    use IssuesAuthCookie;
 
     /**
      * Login administrateur — pose un cookie HttpOnly + renvoie le token JSON
@@ -70,7 +33,8 @@ class AdminAuthController extends Controller
             // Recherche sans filtre : c'est l'admin qui détermine le cabinet courant.
             $admin = Admin::acrossCabinets()->where('email', $request->email)->first();
 
-            if (!$admin || !Hash::check($request->password, $admin->password)) {
+            // Membre invité sans mot de passe encore choisi : mêmes erreurs qu'un mauvais mot de passe.
+            if (!$admin || !$admin->password || !Hash::check($request->password, $admin->password)) {
                 throw ValidationException::withMessages([
                     'email' => ['Les informations d\'identification sont incorrectes.'],
                 ]);
@@ -78,25 +42,18 @@ class AdminAuthController extends Controller
 
             if (!$admin->is_active) {
                 throw ValidationException::withMessages([
-                    'email' => ['Votre compte est désactivé. Contactez un super administrateur.'],
+                    'email' => ['Votre compte est désactivé. Contactez le propriétaire de votre cabinet.'],
                 ]);
             }
 
-            $token = $admin->createToken('admin-token')->plainTextToken;
+            $cabinet = Cabinet::find($admin->cabinet_id);
+            if (!$cabinet || !$cabinet->is_active) {
+                throw ValidationException::withMessages([
+                    'email' => ['Ce cabinet est suspendu. Contactez le support de la plateforme.'],
+                ]);
+            }
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Connexion réussie',
-                'data' => [
-                    'admin' => [
-                        'id' => $admin->id,
-                        'name' => $admin->name,
-                        'email' => $admin->email,
-                        'role' => $admin->role,
-                    ],
-                    'token' => $token, // legacy — sera retiré après bascule 100% cookie
-                ],
-            ])->withCookie($this->buildAuthCookie($token));
+            return $this->startSession($admin, 'Connexion réussie');
         } catch (ValidationException $e) {
             throw $e;
         } catch (QueryException $e) {
@@ -107,6 +64,25 @@ class AdminAuthController extends Controller
                 'message' => 'La base de données est injoignable. Démarrez MySQL/MariaDB, puis vérifiez DB_HOST, DB_PORT, DB_DATABASE et DB_USERNAME dans le fichier .env du dossier api/.',
             ], 503);
         }
+    }
+
+    /**
+     * Ouvre une session : jeton Sanctum + cookie HttpOnly.
+     * Partagé avec l'inscription d'un cabinet (connexion immédiate du propriétaire).
+     */
+    public function startSession(Admin $admin, string $message, int $status = 200): JsonResponse
+    {
+        $admin->forceFill(['last_login_at' => now()])->save();
+        $token = $admin->createToken('admin-token')->plainTextToken;
+
+        return response()->json([
+            'success' => true,
+            'message' => $message,
+            'data' => [
+                'admin' => $this->formatAdmin($admin),
+                'token' => $token, // legacy — sera retiré après bascule 100% cookie
+            ],
+        ], $status)->withCookie($this->buildAuthCookie($token));
     }
 
     /**
@@ -133,7 +109,7 @@ class AdminAuthController extends Controller
     {
         $request->validate(['password' => 'required|string']);
         $admin = $request->user('admin');
-        if (!$admin || !Hash::check($request->password, $admin->password)) {
+        if (!$admin || !$admin->password || !Hash::check($request->password, $admin->password)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Mot de passe incorrect',
@@ -146,7 +122,7 @@ class AdminAuthController extends Controller
     }
 
     /**
-     * Obtenir les informations de l'admin connecté
+     * Obtenir les informations de l'admin connecté (rôle, droits, cabinet).
      */
     public function me(Request $request)
     {
@@ -154,14 +130,25 @@ class AdminAuthController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => [
-                'id' => $admin->id,
-                'name' => $admin->name,
-                'email' => $admin->email,
-                'role' => $admin->role,
+            'data' => $this->formatAdmin($admin) + [
                 'is_active' => $admin->is_active,
                 'created_at' => $admin->created_at,
             ],
         ]);
+    }
+
+    private function formatAdmin(Admin $admin): array
+    {
+        $cabinet = Cabinet::find($admin->cabinet_id);
+
+        return [
+            'id' => $admin->id,
+            'name' => $admin->name,
+            'email' => $admin->email,
+            'role' => $admin->role,
+            'role_label' => Roles::label($admin->role),
+            'permissions' => Roles::permissions($admin->role),
+            'cabinet' => $cabinet ? ['id' => $cabinet->id, 'name' => $cabinet->name] : null,
+        ];
     }
 }

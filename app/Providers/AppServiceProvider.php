@@ -51,6 +51,10 @@ class AppServiceProvider extends ServiceProvider
             ];
         });
 
+        // Création d'un cabinet : 5 par heure et par IP (anti-création en masse).
+        RateLimiter::for('signup', fn (Request $request) =>
+            Limit::perHour(5)->by('signup:' . $request->ip()));
+
         // Vérification courriel + code (invitations, questionnaires) : anti-bruteforce.
         RateLimiter::for('public-verify', fn (Request $request) =>
             Limit::perMinute(10)->by('verify:' . $request->path() . '|' . $request->ip()));

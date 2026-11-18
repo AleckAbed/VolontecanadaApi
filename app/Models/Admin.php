@@ -37,6 +37,7 @@ class Admin extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'access_token_hash',
     ];
 
     /**
@@ -52,6 +53,8 @@ class Admin extends Authenticatable
             'is_active' => 'boolean',
             'lock_screen_backgrounds' => 'array',
             'lock_screen_interval' => 'integer',
+            'access_token_expires_at' => 'datetime',
+            'last_login_at' => 'datetime',
         ];
     }
 

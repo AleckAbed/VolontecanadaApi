@@ -33,6 +33,11 @@ class ResolveCabinetFromUser
             }
         }
 
+        // Compte désactivé : traité comme non connecté, même avec un jeton encore valide.
+        if ($user && isset($user->is_active) && ! $user->is_active) {
+            $user = null;
+        }
+
         if (! $user || empty($user->cabinet_id)) {
             if ($mode === 'optional') {
                 return $next($request);

@@ -58,6 +58,12 @@ return [
             'driver' => 'sanctum',
             'provider' => 'collaborators',
         ],
+
+        // Guard pour l'éditeur de la plateforme (super-admin, hors cabinets)
+        'platform' => [
+            'driver' => 'sanctum',
+            'provider' => 'platform_admins',
+        ],
     ],
 
     /*
@@ -99,6 +105,12 @@ return [
         'collaborators' => [
             'driver' => 'eloquent',
             'model' => App\Models\Collaborator::class,
+        ],
+
+        // Provider pour l'éditeur de la plateforme
+        'platform_admins' => [
+            'driver' => 'eloquent',
+            'model' => App\Models\PlatformAdmin::class,
         ],
     ],
 
