@@ -49,8 +49,8 @@ class SendDeadlineReminders extends Command
                     $dedupe = "deadline:{$item['key']}:{$item['due_date']}:" . ($overdue ? 'overdue' : 'reminder');
 
                     $created = $notifications->notify($staffIds, $overdue ? 'deadline_overdue' : 'deadline_reminder', $title, $body, $item['link'], $dedupe);
-                    foreach ($created as $n) {
-                        $perAdmin[$n->admin_id][] = ['title' => $title, 'body' => $body, 'link' => $item['link'], 'overdue' => $overdue];
+                    foreach ($notifications->lastDeliveredAdminIds() as $adminId) {
+                        $perAdmin[$adminId][] = ['title' => $title, 'body' => $body, 'link' => $item['link'], 'overdue' => $overdue];
                     }
                     $totalNotifications += $created->count();
                 }
@@ -60,7 +60,7 @@ class SendDeadlineReminders extends Command
                 }
                 foreach ($perAdmin as $adminId => $items) {
                     $admin = Admin::find($adminId);
-                    if (! $admin?->email) {
+                    if (! $admin?->email || ! \App\Support\NotificationTypes::wants($admin, 'deadline_digest', 'email')) {
                         continue;
                     }
                     try {
