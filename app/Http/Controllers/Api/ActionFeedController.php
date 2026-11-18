@@ -108,6 +108,20 @@ class ActionFeedController extends Controller
                     'link' => "/admin/dossiers/{$d->id}",
                 ])->values(),
             ],
+            // 3.11 : rendez-vous passés depuis moins de 14 jours, sans issue notée.
+            'appointments_to_document' => [
+                'label' => 'Rendez-vous à documenter',
+                'severity' => 'neutral',
+                'items' => \App\Models\Appointment::where('status', 'confirmed')->whereNull('outcome')
+                    ->whereBetween('starts_at', [now()->subDays(14), now()->subMinutes(30)])
+                    ->orderByDesc('starts_at')->get()
+                    ->map(fn ($a) => [
+                        'title' => $a->name,
+                        'subtitle' => 'Notez si le rendez-vous a eu lieu et ce qui a été convenu.',
+                        'date' => $a->starts_at->toDateString(),
+                        'link' => '/admin/rendez-vous?onglet=passes',
+                    ])->values(),
+            ],
         ];
 
         $out = [];

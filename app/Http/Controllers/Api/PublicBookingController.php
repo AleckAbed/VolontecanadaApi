@@ -149,6 +149,8 @@ class PublicBookingController extends Controller
             ] : null,
             'can_cancel' => $this->canCancel($a),
             'cancel_notice_hours' => self::CANCEL_NOTICE_HOURS,
+            'can_reschedule' => $this->canReschedule($a),
+            'reschedules_left' => max(0, Appointment::MAX_CLIENT_RESCHEDULES - $a->reschedule_count),
         ]]);
     }
 
@@ -177,5 +179,43 @@ class PublicBookingController extends Controller
         CurrentCabinet::set($cabinet->id);
 
         return $cabinet;
+    }
+
+    /** Créneaux libres pour déplacer le rendez-vous (même prestation, même hôte). */
+    public function rescheduleSlots(Request $request, string $token, SlotFinder $finder)
+    {
+        $a = Appointment::where('public_token', $token)->firstOrFail();
+        if (! $this->canReschedule($a)) {
+            return response()->json(['success' => false, 'message' => 'Ce rendez-vous ne peut plus être déplacé en ligne. Contactez le cabinet.'], 422);
+        }
+        $data = $request->validate(['from' => ['nullable', 'date_format:Y-m-d'], 'days' => ['nullable', 'integer', 'between:1,14']]);
+
+        return response()->json(['success' => true, 'data' => $finder->window(
+            Cabinet::findOrFail($a->cabinet_id), BookingService::findOrFail($a->booking_service_id), $data['from'] ?? null, $data['days'] ?? null, $a,
+        )]);
+    }
+
+    public function reschedule(Request $request, string $token, AppointmentScheduler $scheduler)
+    {
+        $a = Appointment::where('public_token', $token)->firstOrFail();
+        if (! $this->canReschedule($a)) {
+            return response()->json(['success' => false, 'message' => 'Ce rendez-vous ne peut plus être déplacé en ligne. Contactez le cabinet.'], 422);
+        }
+        $data = $request->validate(['start' => ['required', 'date']]);
+        try {
+            $a = $scheduler->reschedule($a, CarbonImmutable::parse($data['start'])->utc(), 'client');
+        } catch (RuntimeException $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 409);
+        }
+
+        return response()->json(['success' => true, 'message' => 'Rendez-vous déplacé. Une nouvelle invitation vous a été envoyée par courriel.']);
+    }
+
+    /** Déplacement en ligne : rendez-vous confirmé, au moins 24 h avant, au plus 2 fois. */
+    private function canReschedule(Appointment $a): bool
+    {
+        return $a->status === 'confirmed'
+            && $a->starts_at->gt(now()->addHours(self::CANCEL_NOTICE_HOURS))
+            && $a->reschedule_count < Appointment::MAX_CLIENT_RESCHEDULES;
     }
 }

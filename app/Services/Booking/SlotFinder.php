@@ -27,7 +27,7 @@ class SlotFinder
     public function __construct(private CalendarGateway $calendar) {}
 
     /** @return array<int, CarbonImmutable> débuts des créneaux libres (UTC) */
-    public function slots(Cabinet $cabinet, BookingService $service, CarbonImmutable $fromDay, CarbonImmutable $toDay): array
+    public function slots(Cabinet $cabinet, BookingService $service, CarbonImmutable $fromDay, CarbonImmutable $toDay, ?Appointment $ignore = null): array
     {
         $tz = $cabinet->timezone ?: 'America/Toronto';
         $duration = max(5, $service->duration_minutes);
@@ -48,6 +48,7 @@ class SlotFinder
             ->where('host_admin_id', $service->host_admin_id)
             ->where('starts_at', '<', $rangeEnd)
             ->where('ends_at', '>', $rangeStart)
+            ->when($ignore, fn ($q) => $q->whereKeyNot($ignore->id))
             ->get(['starts_at', 'ends_at'])
             ->map(fn ($a) => [CarbonImmutable::parse($a->starts_at), CarbonImmutable::parse($a->ends_at)])
             ->all();
@@ -56,7 +57,13 @@ class SlotFinder
         if ($host?->google_refresh_token) {
             try {
                 foreach ($this->calendar->busy($host, $rangeStart, $rangeEnd) as [$s, $e]) {
-                    $busy[] = [CarbonImmutable::parse($s), CarbonImmutable::parse($e)];
+                    $s = CarbonImmutable::parse($s);
+                    $e = CarbonImmutable::parse($e);
+                    // L'événement Google du rendez-vous déplacé n'occupe pas son propre créneau.
+                    if ($ignore && $s->equalTo($ignore->starts_at) && $e->equalTo($ignore->ends_at)) {
+                        continue;
+                    }
+                    $busy[] = [$s, $e];
                 }
             } catch (\Throwable $e) {
                 // Agenda injoignable : on propose quand même les créneaux (les rendez-vous internes restent bloquants).
@@ -88,9 +95,9 @@ class SlotFinder
         return array_values(array_unique($slots, SORT_REGULAR));
     }
 
-    public function isAvailable(Cabinet $cabinet, BookingService $service, CarbonImmutable $startUtc): bool
+    public function isAvailable(Cabinet $cabinet, BookingService $service, CarbonImmutable $startUtc, ?Appointment $ignore = null): bool
     {
-        foreach ($this->slots($cabinet, $service, $startUtc->subDay(), $startUtc->addDay()) as $slot) {
+        foreach ($this->slots($cabinet, $service, $startUtc->subDay(), $startUtc->addDay(), $ignore) as $slot) {
             if ($slot->equalTo($startUtc)) {
                 return true;
             }
@@ -108,5 +115,32 @@ class SlotFinder
         }
 
         return false;
+    }
+
+    /**
+     * Créneaux d'une semaine (ou de $days jours) à partir de $from, au format des pages :
+     * ['from', 'to', 'timezone', 'max_date', 'slots' => [['start', 'date', 'time']]].
+     */
+    public function window(Cabinet $cabinet, BookingService $service, ?string $from, ?int $days, ?Appointment $ignore = null): array
+    {
+        $tz = $cabinet->timezone ?: 'America/Toronto';
+        $today = CarbonImmutable::now($tz)->startOfDay();
+        $start = $from ? CarbonImmutable::createFromFormat('Y-m-d', $from, $tz)->startOfDay() : $today;
+        if ($start->lt($today)) {
+            $start = $today;
+        }
+        $end = $start->addDays(($days ?: 7) - 1);
+
+        return [
+            'from' => $start->toDateString(),
+            'to' => $end->toDateString(),
+            'timezone' => $tz,
+            'max_date' => $today->addDays(self::MAX_DAYS_AHEAD)->toDateString(),
+            'slots' => collect($this->slots($cabinet, $service, $start, $end, $ignore))->map(function (CarbonImmutable $s) use ($tz) {
+                $local = $s->setTimezone($tz);
+
+                return ['start' => $s->toIso8601ZuluString(), 'date' => $local->toDateString(), 'time' => $local->format('H:i')];
+            })->values()->all(),
+        ];
     }
 }
