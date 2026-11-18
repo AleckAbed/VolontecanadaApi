@@ -6,16 +6,29 @@ use App\Models\Admin;
 use App\Models\AdminNotification;
 use App\Models\Invitation;
 use App\Models\QuestionnaireRequest;
+use App\Mail\NotificationMail;
+use App\Support\NotificationTypes;
 use App\Support\Roles;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Notifications du personnel (cloche de l'en-tête).
- * Une ligne par destinataire ; dedupe_key évite de répéter un même rappel.
+ * Notifications du personnel : dans la cloche de l'en-tête et, selon les préférences
+ * de chacun (NotificationTypes), par courriel.
+ * dedupe_key évite de répéter un même rappel.
  */
 class NotificationService
 {
+    /** Destinataires réellement atteints par le dernier appel à notify() (cloche ou courriel). */
+    private array $lastDelivered = [];
+
+    public function lastDeliveredAdminIds(): array
+    {
+        return $this->lastDelivered;
+    }
+
     /**
      * @param  iterable<int>  $adminIds
      * @return Collection<int, AdminNotification> notifications réellement créées (hors doublons)
@@ -23,20 +36,32 @@ class NotificationService
     public function notify(iterable $adminIds, string $type, string $title, ?string $body = null, ?string $link = null, ?string $dedupeKey = null): Collection
     {
         $created = collect();
+        $this->lastDelivered = [];
+        $admins = Admin::whereIn('id', collect($adminIds)->filter()->unique())->get()->keyBy('id');
 
-        foreach (collect($adminIds)->filter()->unique() as $adminId) {
+        foreach ($admins as $adminId => $admin) {
             try {
-                if ($dedupeKey && AdminNotification::where('admin_id', $adminId)->where('dedupe_key', $dedupeKey)->exists()) {
+                if ($dedupeKey && (AdminNotification::where('admin_id', $adminId)->where('dedupe_key', $dedupeKey)->exists()
+                    || Cache::has("notif-sent:{$adminId}:{$dedupeKey}"))) {
                     continue;
                 }
-                $created->push(AdminNotification::create([
-                    'admin_id' => $adminId,
-                    'type' => $type,
-                    'title' => $title,
-                    'body' => $body,
-                    'link' => $link,
-                    'dedupe_key' => $dedupeKey,
-                ]));
+                $this->lastDelivered[] = (int) $adminId;
+                if (NotificationTypes::wants($admin, $type, 'app')) {
+                    $created->push(AdminNotification::create([
+                        'admin_id' => $adminId,
+                        'type' => $type,
+                        'title' => $title,
+                        'body' => $body,
+                        'link' => $link,
+                        'dedupe_key' => $dedupeKey,
+                    ]));
+                } elseif ($dedupeKey) {
+                    // Pas d'entrée dans la cloche : on se souvient quand même de l'envoi pour ne pas le répéter.
+                    Cache::put("notif-sent:{$adminId}:{$dedupeKey}", 1, now()->addDays(60));
+                }
+                if ($admin->email && $admin->is_active && NotificationTypes::wants($admin, $type, 'email')) {
+                    Mail::to($admin->email)->send(new NotificationMail($admin, $title, $body, $link));
+                }
             } catch (\Throwable $e) {
                 // Une notification ratée ne doit jamais faire échouer l'action du client.
                 Log::warning('Notification non créée', ['admin_id' => $adminId, 'type' => $type, 'error' => $e->getMessage()]);

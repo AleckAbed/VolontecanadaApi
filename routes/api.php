@@ -21,6 +21,7 @@ use App\Http\Controllers\Api\CabinetProfileController;
 use App\Http\Controllers\Api\TwoFactorController;
 use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\HealthController;
+use App\Http\Controllers\Api\NotificationPreferenceController;
 use App\Http\Controllers\Api\FieldMapController;
 use App\Http\Controllers\Api\Platform\PlatformAuthController;
 use App\Http\Controllers\Api\Platform\PlatformCabinetController;
@@ -124,6 +125,10 @@ Route::prefix('admin')->group(function () {
         Route::get('/mandates/preview', [MandateController::class, 'preview']);
         Route::post('/mandates', [MandateController::class, 'store']);
         Route::post('/mandates/{id}/void', [MandateController::class, 'void']);
+
+        // Préférences de notification (cloche, courriel)
+        Route::get('/notification-preferences', [NotificationPreferenceController::class, 'show']);
+        Route::put('/notification-preferences', [NotificationPreferenceController::class, 'update']);
 
         // Double authentification de la personne connectée (2.7)
         Route::get('/two-factor', [TwoFactorController::class, 'status']);
