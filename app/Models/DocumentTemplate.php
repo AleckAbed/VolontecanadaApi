@@ -26,6 +26,8 @@ class DocumentTemplate extends Model
         'template_json',
         'created_by',
         'is_active',
+        'catalog_template_id',
+        'catalog_version',
     ];
 
     public static function targetLocationOptions(): array
