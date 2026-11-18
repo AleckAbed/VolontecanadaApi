@@ -2,7 +2,7 @@
 
 namespace App\Support;
 
-use App\Models\Admin;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 
@@ -125,8 +125,8 @@ final class TwoFactor
         return [$plain, array_map(fn ($c) => hash('sha256', $c), $plain)];
     }
 
-    /** Consomme un code de secours de l'admin s'il est valide. */
-    public static function useRecoveryCode(Admin $admin, string $code): bool
+    /** Consomme un code de secours du compte (admin ou console plateforme) s'il est valide. */
+    public static function useRecoveryCode(Model $admin, string $code): bool
     {
         $hash = hash('sha256', strtoupper(trim($code)));
         $codes = $admin->two_factor_recovery_codes ?? [];
@@ -142,12 +142,62 @@ final class TwoFactor
         return false;
     }
 
-    /** Vérifie un code (application ou courriel selon la méthode de l'admin). */
-    public static function verifyFor(Admin $admin, string $code, string $emailKey): bool
+    /** Vérifie un code (application ou courriel selon la méthode du compte ; la console n'a que l'application). */
+    public static function verifyFor(Model $account, string $code, string $emailKey): bool
     {
-        return $admin->two_factor_method === 'totp'
-            ? self::verifyTotp((string) $admin->two_factor_secret, $code, "2fa-totp-last:{$admin->id}")
+        $method = $account->getAttribute('two_factor_method') ?? 'totp';
+        $replay = '2fa-totp-last:' . class_basename($account) . ':' . $account->getKey();
+
+        return $method === 'totp'
+            ? self::verifyTotp((string) $account->getAttribute('two_factor_secret'), $code, $replay)
             : self::verifyEmailCode($emailKey, $code);
+    }
+
+    // ─── Défi de connexion (jeton à usage unique entre le mot de passe et le code) ──
+
+    public const CHALLENGE_MAX_ATTEMPTS = 5;
+
+    public static function createChallenge(string $audience, int $id): string
+    {
+        $challenge = Str::random(48);
+        Cache::put(self::challengeKey($audience, $challenge), ['id' => $id, 'attempts' => 0], now()->addMinutes(10));
+
+        return $challenge;
+    }
+
+    /** Identifiant du compte du défi, ou null s'il est inconnu ou expiré. */
+    public static function challengeAccount(string $audience, string $challenge): ?int
+    {
+        return Cache::get(self::challengeKey($audience, $challenge))['id'] ?? null;
+    }
+
+    /** Compte une erreur ; renvoie false quand le défi est épuisé (et supprimé). */
+    public static function failChallenge(string $audience, string $challenge): bool
+    {
+        $key = self::challengeKey($audience, $challenge);
+        $entry = Cache::get($key);
+        if (! $entry) {
+            return false;
+        }
+        $entry['attempts']++;
+        if ($entry['attempts'] >= self::CHALLENGE_MAX_ATTEMPTS) {
+            Cache::forget($key);
+
+            return false;
+        }
+        Cache::put($key, $entry, now()->addMinutes(10));
+
+        return true;
+    }
+
+    public static function forgetChallenge(string $audience, string $challenge): void
+    {
+        Cache::forget(self::challengeKey($audience, $challenge));
+    }
+
+    private static function challengeKey(string $audience, string $challenge): string
+    {
+        return "2fa-challenge:{$audience}:" . hash('sha256', $challenge);
     }
 
     /** Adresse masquée : « m•••@exemple.ca ». */

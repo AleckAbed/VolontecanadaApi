@@ -20,6 +20,7 @@ use App\Http\Controllers\Api\ComplianceController;
 use App\Http\Controllers\Api\CabinetProfileController;
 use App\Http\Controllers\Api\TwoFactorController;
 use App\Http\Controllers\Api\AuditLogController;
+use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\FieldMapController;
 use App\Http\Controllers\Api\Platform\PlatformAuthController;
 use App\Http\Controllers\Api\Platform\PlatformCabinetController;
@@ -354,6 +355,9 @@ Route::middleware('throttle:public-verify')->get('/google/callback', [BookingAdm
 // Webhooks Stripe (signature vérifiée dans le contrôleur)
 Route::post('/stripe/webhook', [StripeWebhookController::class, 'handle']);
 
+// Santé de la plateforme (surveillance) : détail seulement avec X-Health-Token
+Route::middleware('throttle:60,1')->get('/health', [HealthController::class, 'show']);
+
 // Logo public d'un cabinet (courriels, pages publiques) : seul fichier servi sans authentification
 Route::middleware('throttle:public-read')->get('/cabinets/{slug}/logo', [CabinetProfileController::class, 'publicLogo']);
 foreach (['invitation', 'questionnaire', 'document', 'activation'] as $type) {
@@ -366,6 +370,7 @@ Route::middleware('throttle:signup')->post('/cabinets/register', [CabinetRegistr
 // Console de l'éditeur de la plateforme (super-admin)
 Route::prefix('platform')->group(function () {
     Route::middleware('throttle:login')->post('/login', [PlatformAuthController::class, 'login']);
+    Route::middleware('throttle:login')->post('/login/two-factor', [PlatformAuthController::class, 'verifyTwoFactor']);
     Route::middleware('auth:platform')->group(function () {
         Route::get('/me', [PlatformAuthController::class, 'me']);
         Route::post('/logout', [PlatformAuthController::class, 'logout']);
@@ -451,6 +456,9 @@ Route::middleware(['throttle:public-write', 'cabinet.code:invitation'])->group(f
 
 // Routes COLLABORATEUR — espace de travail dédié
 Route::prefix('collaborator')->group(function () {
+    // Code par courriel quand le cabinet l'exige (2.7)
+    Route::middleware('throttle:login')->post('/login/two-factor', [CollaboratorAuthController::class, 'verifyTwoFactor']);
+    Route::middleware('throttle:login')->post('/login/two-factor/resend', [CollaboratorAuthController::class, 'resendTwoFactor']);
     Route::middleware('throttle:login')->post('/login', [CollaboratorAuthController::class, 'login']);
 
     // Activation du compte via le lien envoyé par l'admin (public, throttle)

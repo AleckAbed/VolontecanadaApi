@@ -131,6 +131,7 @@ class TwoFactorController extends Controller
             'confirmed_at' => $admin->two_factor_confirmed_at?->toIso8601String(),
             'recovery_codes_left' => $admin->hasTwoFactor() ? count($admin->two_factor_recovery_codes ?? []) : 0,
             'required_by_cabinet' => (bool) Cabinet::whereKey($admin->cabinet_id)->value('require_two_factor'),
+            'required_for_collaborators' => (bool) Cabinet::whereKey($admin->cabinet_id)->value('require_two_factor_collaborators'),
             'can_manage' => in_array($admin->role, Roles::MANAGERS, true),
         ]]);
     }
@@ -221,12 +222,26 @@ class TwoFactorController extends Controller
     /** Exiger (ou non) la double authentification pour toute l'équipe. */
     public function setRequirement(Request $request)
     {
-        $data = $request->validate(['require_two_factor' => 'required|boolean']);
+        $data = $request->validate([
+            'require_two_factor' => 'sometimes|boolean',
+            'require_two_factor_collaborators' => 'sometimes|boolean',
+        ]);
+        $cabinet = Cabinet::findOrFail(CurrentCabinet::require());
+        if (array_key_exists('require_two_factor_collaborators', $data)) {
+            $cabinet->forceFill(['require_two_factor_collaborators' => $data['require_two_factor_collaborators']])->save();
+            if (! array_key_exists('require_two_factor', $data)) {
+                return response()->json(['success' => true, 'message' => $data['require_two_factor_collaborators']
+                    ? 'Les collaborateurs recevront un code par courriel à chaque connexion.'
+                    : 'Les collaborateurs se connectent de nouveau avec leur seul mot de passe.']);
+            }
+        }
+        if (! array_key_exists('require_two_factor', $data)) {
+            return response()->json(['success' => false, 'message' => 'Aucun réglage reçu.'], 422);
+        }
         $admin = $request->user();
         if ($data['require_two_factor'] && ! $admin->hasTwoFactor()) {
             return response()->json(['success' => false, 'message' => 'Activez d’abord la double authentification pour vous-même.'], 422);
         }
-        $cabinet = Cabinet::findOrFail(CurrentCabinet::require());
         $cabinet->forceFill(['require_two_factor' => $data['require_two_factor']])->save();
         $missing = Admin::where('is_active', true)->get()->reject->hasTwoFactor()->count();
 

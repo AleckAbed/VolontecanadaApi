@@ -65,6 +65,9 @@ return [
     |
     */
 
+    // Jeton qui révèle le détail de /api/health (surveillance).
+    'health_token' => env('HEALTH_TOKEN'),
+
     'frontend_url' => env('FRONTEND_URL', env('APP_URL', 'http://localhost:3001')),
 
     /*
