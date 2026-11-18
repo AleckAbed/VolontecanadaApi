@@ -22,6 +22,8 @@ use App\Http\Controllers\Api\TwoFactorController;
 use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\CatalogController;
+use App\Http\Controllers\Api\CompanyController;
+use App\Http\Controllers\Api\CompanyPortalController;
 use App\Http\Controllers\Api\Platform\PlatformCatalogController;
 use App\Http\Controllers\Api\NotificationPreferenceController;
 use App\Http\Controllers\Api\FieldMapController;
@@ -127,6 +129,24 @@ Route::prefix('admin')->group(function () {
         Route::get('/mandates/preview', [MandateController::class, 'preview']);
         Route::post('/mandates', [MandateController::class, 'store']);
         Route::post('/mandates/{id}/void', [MandateController::class, 'void']);
+
+        // Clients « entreprise » : fiche, contacts, employés, demandes, dossiers
+        Route::get('/companies', [CompanyController::class, 'index']);
+        Route::post('/companies', [CompanyController::class, 'store']);
+        Route::get('/companies/{id}', [CompanyController::class, 'show']);
+        Route::put('/companies/{id}', [CompanyController::class, 'update']);
+        Route::delete('/companies/{id}', [CompanyController::class, 'destroy'])->middleware('role:owner,admin');
+        Route::post('/companies/{id}/contacts', [CompanyController::class, 'storeContact']);
+        Route::put('/companies/{id}/contacts/{contactId}', [CompanyController::class, 'updateContact']);
+        Route::delete('/companies/{id}/contacts/{contactId}', [CompanyController::class, 'destroyContact']);
+        Route::post('/companies/{id}/contacts/{contactId}/invite', [CompanyController::class, 'inviteContact']);
+        Route::post('/companies/{id}/employees', [CompanyController::class, 'linkEmployee']);
+        Route::post('/companies/{id}/employees/{linkId}/end', [CompanyController::class, 'endEmployee']);
+        Route::get('/module-clients/{clientId}/companies', [CompanyController::class, 'forClient']);
+        Route::put('/dossiers/{dossierId}/company', [CompanyController::class, 'setDossierCompany']);
+        Route::get('/company-requests', [CompanyController::class, 'requests']);
+        Route::post('/company-requests/{requestId}/accept', [CompanyController::class, 'acceptRequest']);
+        Route::post('/company-requests/{requestId}/decline', [CompanyController::class, 'declineRequest']);
 
         // Préférences de notification (cloche, courriel)
         Route::get('/notification-preferences', [NotificationPreferenceController::class, 'show']);
@@ -397,6 +417,22 @@ Route::prefix('platform')->group(function () {
         Route::post('/catalog', [PlatformCatalogController::class, 'publishFromCabinet']);
         Route::patch('/catalog/{id}', [PlatformCatalogController::class, 'update']);
         Route::delete('/catalog/{id}', [PlatformCatalogController::class, 'destroy']);
+    });
+});
+
+// Espace entreprise : contacts des clients « entreprise »
+Route::prefix('company')->group(function () {
+    Route::middleware('throttle:login')->post('/login', [CompanyPortalController::class, 'login']);
+    Route::middleware('throttle:public-verify')->group(function () {
+        Route::post('/password/forgot', [CompanyPortalController::class, 'forgotPassword']);
+        Route::post('/access/check', [CompanyPortalController::class, 'checkAccess']);
+        Route::post('/access/complete', [CompanyPortalController::class, 'completeAccess']);
+    });
+    Route::middleware(['auth:company', 'cabinet', 'audit'])->group(function () {
+        Route::get('/me', [CompanyPortalController::class, 'me']);
+        Route::post('/logout', [CompanyPortalController::class, 'logout']);
+        Route::get('/portal', [CompanyPortalController::class, 'overview']);
+        Route::middleware('throttle:20,1')->post('/requests', [CompanyPortalController::class, 'storeRequest']);
     });
 });
 

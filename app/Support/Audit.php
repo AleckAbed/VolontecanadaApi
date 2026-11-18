@@ -115,6 +115,7 @@ final class Audit
             $user instanceof Admin => ['type' => 'admin', 'id' => $user->id, 'name' => $user->name],
             $user instanceof Collaborator => ['type' => 'collaborator', 'id' => $user->id, 'name' => trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? '')) ?: ($user->name ?? 'Collaborateur')],
             $user instanceof Client => ['type' => 'client', 'id' => $user->id, 'name' => 'Client'],
+            $user instanceof \App\Models\CompanyContact => ['type' => 'company', 'id' => $user->id, 'name' => 'Entreprise : ' . $user->full_name],
             default => ['type' => 'public', 'id' => null, 'name' => 'Lien client'],
         };
     }
@@ -185,6 +186,9 @@ final class Audit
             \App\Models\Cabinet::class => 'cabinet',
             \App\Models\ChatbotSettings::class => 'chatbot_settings',
             \App\Models\DataRequest::class => 'data_request',
+            \App\Models\Company::class => 'company',
+            \App\Models\CompanyContact::class => 'company_contact',
+            \App\Models\CompanyRequest::class => 'company_request',
         ][$model::class] ?? null;
     }
 }

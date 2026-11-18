@@ -58,7 +58,11 @@ class InvoiceController extends Controller
         $data = $this->validated($request);
         $client = Client::findOrFail($data['client_id']);
 
+        if ($error = $this->companyError($client, $data['company_id'] ?? null)) {
+            return $error;
+        }
         $invoice = $this->invoices->saveDraft(null, $client, $data['dossier_id'] ?? null, $data['lines'], $data['due_date'] ?? null, $data['notes'] ?? null, $request->user('admin')->id);
+        $invoice->forceFill(['company_id' => $data['company_id'] ?? null])->save();
 
         return response()->json(['success' => true, 'message' => "Facture {$invoice->number} créée (brouillon).", 'data' => ['id' => $invoice->id]], 201);
     }
@@ -71,7 +75,11 @@ class InvoiceController extends Controller
         }
         $data = $this->validated($request);
         $client = Client::findOrFail($data['client_id']);
+        if ($error = $this->companyError($client, $data['company_id'] ?? null)) {
+            return $error;
+        }
         $this->invoices->saveDraft($invoice, $client, $data['dossier_id'] ?? null, $data['lines'], $data['due_date'] ?? null, $data['notes'] ?? null, null);
+        $invoice->forceFill(['company_id' => $data['company_id'] ?? null])->save();
 
         return response()->json(['success' => true, 'message' => 'Facture enregistrée.']);
     }
@@ -125,6 +133,8 @@ class InvoiceController extends Controller
         return $request->validate([
             'client_id' => ['required', CabinetRule::exists('clients')],
             'dossier_id' => ['nullable', CabinetRule::exists('dossiers')],
+            // Facture adressée à l'entreprise de l'employé (le client reste l'employé concerné).
+            'company_id' => ['nullable', CabinetRule::exists('companies')],
             'due_date' => ['nullable', 'date'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'lines' => ['required', 'array', 'min:1', 'max:50'],
@@ -170,6 +180,14 @@ class InvoiceController extends Controller
                 'email' => $i->client->email,
                 'address' => $i->client->address,
             ] : null,
+            // Facture adressée à l'entreprise : c'est elle qui figure dans « Facturé à ».
+            'company' => ($co = $i->company_id ? \App\Models\Company::find($i->company_id) : null) ? [
+                'id' => $co->id,
+                'name' => $co->name,
+                'email' => $co->email,
+                'address' => trim(implode("\n", array_filter([$co->address, trim(($co->city ?? '') . ' ' . ($co->province ?? '') . ' ' . ($co->postal_code ?? ''))]))),
+                'business_number' => $co->business_number,
+            ] : null,
             'lines' => $i->lines->map(fn ($l) => [
                 'description' => $l->description,
                 'quantity' => $l->quantity,
@@ -188,5 +206,15 @@ class InvoiceController extends Controller
             ] : null,
             'public_url' => rtrim(config('app.frontend_url'), '/') . '/facture/' . $i->public_token,
         ];
+    }
+
+    /** L'entreprise facturée doit être (ou avoir été) l'employeur du client. */
+    private function companyError(Client $client, ?int $companyId)
+    {
+        if ($companyId && ! \Illuminate\Support\Facades\DB::table('company_client')->where('company_id', $companyId)->where('client_id', $client->id)->exists()) {
+            return response()->json(['success' => false, 'message' => 'Ce client n’est pas lié à cette entreprise.'], 422);
+        }
+
+        return null;
     }
 }
