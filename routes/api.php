@@ -3,6 +3,9 @@
 use App\Http\Controllers\Api\AdminAccessController;
 use App\Http\Controllers\Api\AdminAuthController;
 use App\Http\Controllers\Api\CabinetRegistrationController;
+use App\Http\Controllers\Api\ClientAccessController;
+use App\Http\Controllers\Api\ClientPortalController;
+use App\Http\Controllers\Api\FieldMapController;
 use App\Http\Controllers\Api\Platform\PlatformAuthController;
 use App\Http\Controllers\Api\Platform\PlatformCabinetController;
 use App\Http\Controllers\Api\TeamController;
@@ -119,6 +122,8 @@ Route::prefix('admin')->group(function () {
         Route::post('module-clients/{id}/family-members', [ClientController::class, 'addFamilyMember']);
         Route::put('module-clients/{id}/family-members/{memberId}', [ClientController::class, 'updateFamilyMember']);
         Route::delete('module-clients/{id}/family-members/{memberId}', [ClientController::class, 'destroyFamilyMember'])->middleware('role:owner,admin,advisor');
+        // Accès du client à son portail (lien pour choisir son mot de passe)
+        Route::post('module-clients/{id}/portal-invite', [ClientAccessController::class, 'invite']);
 
         Route::get('/dossiers/options', [DossierController::class, 'options']);
         Route::apiResource('dossiers', DossierController::class)->parameters(['dossier' => 'id'])->middlewareFor('destroy', 'role:owner,admin,advisor');
@@ -131,6 +136,9 @@ Route::prefix('admin')->group(function () {
         Route::put('/document-templates/{id}/schema', [DocumentController::class, 'updateTemplateSchema'])->middleware('role:owner,admin');
         Route::delete('/document-templates/{id}', [DocumentController::class, 'destroyTemplate'])->middleware('role:owner,admin');
         Route::get('/document-templates/{id}/pdf', [DocumentController::class, 'servePdf']);
+        // Correspondance des champs PDF avec le profil client (préremplissage)
+        Route::get('/document-templates/{id}/field-map', [FieldMapController::class, 'show']);
+        Route::put('/document-templates/{id}/field-map', [FieldMapController::class, 'update'])->middleware('role:owner,admin');
 
         // Demandes de documents envoyées aux clients
         Route::get('/document-requests', [DocumentController::class, 'indexRequests']);
@@ -234,10 +242,22 @@ Route::prefix('client')->group(function () {
     // Inscription publique désactivée : un client n'est créé que par un cabinet.
     Route::middleware('throttle:login')->post('/login', [ClientAuthController::class, 'login']);
 
+    // Accès au portail : mot de passe oublié, lien d'activation
+    Route::middleware('throttle:public-verify')->group(function () {
+        Route::post('/password/forgot', [ClientAccessController::class, 'forgotPassword']);
+        Route::post('/access/check', [ClientAccessController::class, 'check']);
+        Route::post('/access/complete', [ClientAccessController::class, 'complete']);
+    });
+
     // Routes protégées pour les clients
     Route::middleware(['auth:client', 'cabinet'])->group(function () {
         Route::post('/logout', [ClientAuthController::class, 'logout']);
         Route::get('/me', [ClientAuthController::class, 'me']);
+
+        // Portail : dossiers, démarches à compléter, profil d'immigration
+        Route::get('/portal', [ClientPortalController::class, 'overview']);
+        Route::get('/profile', [ClientPortalController::class, 'profile']);
+        Route::put('/profile', [ClientPortalController::class, 'updateProfile']);
     });
 });
 

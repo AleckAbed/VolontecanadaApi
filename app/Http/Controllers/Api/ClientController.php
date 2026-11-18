@@ -62,7 +62,7 @@ class ClientController extends Controller
             'first_name' => 'required|string|max:255',
             'last_name' => 'required|string|max:255',
             'email' => ['required', 'email', CabinetRule::unique('clients', 'email')],
-            'password' => 'required|string|min:8',
+            'password' => 'nullable|string|min:8', // facultatif : le client peut recevoir un lien d'accès au portail
             'phone' => 'nullable|string|max:50',
             'date_of_birth' => 'nullable|date',
             'nationality' => 'nullable|string|max:100',
@@ -95,7 +95,7 @@ class ClientController extends Controller
             'client_type', 'first_name', 'last_name', 'email', 'phone',
             'date_of_birth', 'nationality', 'country_of_residence', 'passport_number', 'address',
         ]);
-        $data['password'] = Hash::make($request->password);
+        $data["password"] = $request->filled("password") ? Hash::make($request->password) : null;
         $data['client_type'] = $request->client_type;
         if ($request->has('in_canada')) {
             $data['in_canada'] = $request->boolean('in_canada');

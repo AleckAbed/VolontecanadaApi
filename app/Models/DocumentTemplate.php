@@ -39,6 +39,8 @@ class DocumentTemplate extends Model
 
     protected $casts = [
         'template_json' => 'array',
+        // Correspondance champ PDF → clé du profil client (voir ClientProfileService).
+        'field_map' => 'array',
         'is_active' => 'boolean',
     ];
 

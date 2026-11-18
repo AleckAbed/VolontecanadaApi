@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Concerns\IssuesAuthCookie;
 use App\Http\Controllers\Controller;
 use App\Models\Client;
 use Illuminate\Database\QueryException;
@@ -11,6 +12,8 @@ use Illuminate\Validation\ValidationException;
 
 class ClientAuthController extends Controller
 {
+    use IssuesAuthCookie;
+
     /**
      * Login client
      */
@@ -39,8 +42,11 @@ class ClientAuthController extends Controller
                 ]);
             }
 
+            $client->forceFill(['last_login_at' => now()])->save();
             $token = $client->createToken('client-token')->plainTextToken;
 
+            // Cookie HttpOnly comme pour l'admin et le collaborateur : sans lui, le
+            // front (qui ne garde plus le jeton en JavaScript) perdait la session.
             return response()->json([
                 'success' => true,
                 'message' => 'Connexion réussie',
@@ -54,7 +60,7 @@ class ClientAuthController extends Controller
                     ],
                     'token' => $token,
                 ],
-            ]);
+            ])->withCookie($this->buildAuthCookie($token));
         } catch (ValidationException $e) {
             throw $e;
         } catch (QueryException $e) {
@@ -77,7 +83,7 @@ class ClientAuthController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Déconnexion réussie',
-        ]);
+        ])->withCookie($this->buildForgetAuthCookie());
     }
 
     /**

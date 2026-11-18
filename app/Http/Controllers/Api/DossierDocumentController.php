@@ -88,7 +88,12 @@ class DossierDocumentController extends Controller
     public function show($id)
     {
         $doc = DossierDocument::findOrFail($id);
-        return response()->json(['success' => true, 'data' => $this->format($doc)]);
+        $data = $this->format($doc);
+        $data['form_data'] = $doc->form_data;
+        // Valeurs tirées du profil du client ; le front les applique sous les valeurs déjà saisies.
+        $data['prefill'] = (object) app(\App\Services\ClientProfileService::class)->prefillForDossierDocument($doc);
+
+        return response()->json(['success' => true, 'data' => $data]);
     }
 
     public function update(Request $request, $id)
