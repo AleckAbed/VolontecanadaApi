@@ -22,6 +22,7 @@ class PublicInvoiceController extends Controller
 
         return response()->json(['success' => true, 'data' => InvoiceController::detail($invoice, $cabinet) + [
             'can_pay_online' => $invoice->isPayable() && $gateway->isConfigured() && $cabinet?->stripe_charges_enabled,
+            'branding' => $cabinet?->branding(),
         ]]);
     }
 

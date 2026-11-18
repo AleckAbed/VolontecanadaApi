@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\ClientAccessController;
 use App\Http\Controllers\Api\ClientPortalController;
 use App\Http\Controllers\Api\ClientDataController;
 use App\Http\Controllers\Api\ComplianceController;
+use App\Http\Controllers\Api\CabinetProfileController;
 use App\Http\Controllers\Api\FieldMapController;
 use App\Http\Controllers\Api\Platform\PlatformAuthController;
 use App\Http\Controllers\Api\Platform\PlatformCabinetController;
@@ -113,6 +114,14 @@ Route::prefix('admin')->group(function () {
         Route::get('/mandates/preview', [MandateController::class, 'preview']);
         Route::post('/mandates', [MandateController::class, 'store']);
         Route::post('/mandates/{id}/void', [MandateController::class, 'void']);
+
+        // Profil et image de marque du cabinet (1.9)
+        Route::get('/cabinet/profile', [CabinetProfileController::class, 'show']);
+        Route::middleware('role:owner,admin')->group(function () {
+            Route::put('/cabinet/profile', [CabinetProfileController::class, 'update']);
+            Route::post('/cabinet/logo', [CabinetProfileController::class, 'uploadLogo']);
+            Route::delete('/cabinet/logo', [CabinetProfileController::class, 'deleteLogo']);
+        });
 
         // Conformité (S8) : conservation des dossiers, demandes des clients, registre des destructions
         Route::middleware('role:owner,admin')->group(function () {
@@ -324,6 +333,12 @@ Route::middleware('throttle:public-verify')->get('/google/callback', [BookingAdm
 
 // Webhooks Stripe (signature vérifiée dans le contrôleur)
 Route::post('/stripe/webhook', [StripeWebhookController::class, 'handle']);
+
+// Logo public d'un cabinet (courriels, pages publiques) : seul fichier servi sans authentification
+Route::middleware('throttle:public-read')->get('/cabinets/{slug}/logo', [CabinetProfileController::class, 'publicLogo']);
+foreach (['invitation', 'questionnaire', 'document', 'activation'] as $type) {
+    Route::middleware(['throttle:public-read', "cabinet.code:{$type}"])->get("/branding/{$type}/{code}", [CabinetProfileController::class, 'publicBranding']);
+}
 
 // Inscription d'un nouveau cabinet (publique)
 Route::middleware('throttle:signup')->post('/cabinets/register', [CabinetRegistrationController::class, 'register']);

@@ -5,17 +5,18 @@
     <title>Échéances — {{ $cabinetName }}</title>
     <style>
         body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 620px; margin: 0 auto; padding: 20px; background-color: #fafafa; }
-        .header { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); color: white; padding: 24px; text-align: center; border-radius: 8px 8px 0 0; }
+        .header { background: linear-gradient(135deg, {{ $brand['color'] }} 0%, {{ $brand['color_dark'] }} 100%); color: white; padding: 24px; text-align: center; border-radius: 8px 8px 0 0; }
         .content { background-color: #ffffff; padding: 26px; border: 1px solid #e5e7eb; }
         .item { border-left: 4px solid #f59e0b; background: #fffbeb; padding: 10px 14px; margin: 10px 0; border-radius: 4px; }
-        .item.overdue { border-left-color: #dc2626; background: #fef2f2; }
-        .item a { color: #1d4ed8; font-weight: bold; text-decoration: none; }
-        .button { display: inline-block; background: #2563eb; color: #ffffff !important; padding: 12px 26px; text-decoration: none; border-radius: 8px; font-weight: bold; }
+        .item.overdue { border-left-color: {{ $brand['color'] }}; background: #fef2f2; }
+        .item a { color: {{ $brand['color_dark'] }}; font-weight: bold; text-decoration: none; }
+        .button { display: inline-block; background: {{ $brand['color'] }}; color: #ffffff !important; padding: 12px 26px; text-decoration: none; border-radius: 8px; font-weight: bold; }
         .footer { background-color: #eff6ff; padding: 16px; text-align: center; font-size: 12px; color: #475569; border-radius: 0 0 8px 8px; border-top: 2px solid #dbeafe; }
     </style>
 </head>
 <body>
     <div class="header">
+        @include('emails.partials.logo')
         <h1 style="margin:0;font-size:22px">{{ $cabinetName }}</h1>
         <p style="margin:6px 0 0;opacity:.9">Échéances à surveiller</p>
     </div>

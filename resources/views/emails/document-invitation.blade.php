@@ -21,12 +21,13 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>Volonte Canada</h1>
+            @include('emails.partials.logo')
+            <h1>{{ $brand['name'] }}</h1>
             <p>Cabinet d'immigration</p>
         </div>
         <div class="body">
             <p>Bonjour <strong>{{ $clientName }}</strong>,</p>
-            <p>Le cabinet Volonte Canada vous invite à remplir le document suivant dans le cadre de votre dossier d'immigration :</p>
+            <p>Le cabinet {{ $brand['name'] }} vous invite à remplir le document suivant dans le cadre de votre dossier d'immigration :</p>
             <p><strong>📄 {{ $documentName }}</strong></p>
 
             @if($personalMessage)
@@ -54,10 +55,10 @@
             <p style="word-break: break-all; font-size: 13px; color: #555;">{{ $fillUrl }}</p>
 
             <p>Pour toute question, contactez votre conseiller en immigration.</p>
-            <p>Cordialement,<br><strong>L'équipe Volonte Canada</strong></p>
+            <p>Cordialement,<br><strong>L'équipe {{ $brand['name'] }}</strong></p>
         </div>
         <div class="footer">
-            <p>© {{ date('Y') }} Volonte Canada — Cabinet d'immigration</p>
+            <p>© {{ date('Y') }} {{ $brand['name'] }}</p>
             <p>Cet email a été envoyé automatiquement, merci de ne pas y répondre directement.</p>
         </div>
     </div>
