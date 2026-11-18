@@ -31,6 +31,7 @@ class ResolveCabinetFromCode
         'questionnaire' => [QuestionnaireRequest::class, 'unique_code'],
         'document' => [DocumentRequest::class, 'token'],
         'activation' => [Collaborator::class, 'activation_token'],
+        'invoice' => [\App\Models\Invoice::class, 'public_token'],
     ];
 
     public function handle(Request $request, Closure $next, string $type)

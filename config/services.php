@@ -28,6 +28,22 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    /*
+     * Stripe (S6) — compte de la PLATEFORME.
+     *  - Abonnement des cabinets : prix par siège (STRIPE_PRICE_SEAT).
+     *  - Paiement des factures clients : Stripe Connect, l'argent va au compte
+     *    Stripe du cabinet (charges « destination » avec on_behalf_of).
+     * Sans STRIPE_SECRET, les écrans de paiement indiquent que Stripe n'est
+     * pas configuré (aucune requête n'est envoyée).
+     */
+    'stripe' => [
+        'secret' => env('STRIPE_SECRET'),
+        'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
+        'price_seat' => env('STRIPE_PRICE_SEAT'),
+        'trial_days' => (int) env('SUBSCRIPTION_TRIAL_DAYS', 30),
+        'platform_fee_percent' => (float) env('STRIPE_PLATFORM_FEE_PERCENT', 0),
+    ],
+
     'gemini' => [
         'api_key' => env('GEMINI_API_KEY'),
         'model' => env('GEMINI_MODEL', 'gemini-2.5-flash-lite'),
