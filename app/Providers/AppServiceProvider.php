@@ -16,7 +16,15 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Paiements : Stripe si une clé est configurée, sinon passerelle « non configurée »
+        // (les écrans l'indiquent ; les tests remplacent par FakeGateway).
+        $this->app->singleton(\App\Services\Payments\PaymentGateway::class, function () {
+            $cfg = config('services.stripe');
+
+            return ! empty($cfg['secret'])
+                ? new \App\Services\Payments\StripeGateway($cfg['secret'], $cfg['webhook_secret'] ?? null, $cfg['price_seat'] ?? null, (float) ($cfg['platform_fee_percent'] ?? 0))
+                : new \App\Services\Payments\UnconfiguredGateway();
+        });
     }
 
     /**

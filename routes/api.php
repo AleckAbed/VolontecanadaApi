@@ -2,7 +2,11 @@
 
 use App\Http\Controllers\Api\ActionFeedController;
 use App\Http\Controllers\Api\AdminAccessController;
+use App\Http\Controllers\Api\BillingController;
 use App\Http\Controllers\Api\DeadlineController;
+use App\Http\Controllers\Api\InvoiceController;
+use App\Http\Controllers\Api\PublicInvoiceController;
+use App\Http\Controllers\Api\StripeWebhookController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\AdminAuthController;
 use App\Http\Controllers\Api\CabinetRegistrationController;
@@ -74,6 +78,27 @@ Route::prefix('admin')->group(function () {
         Route::get('/notifications', [NotificationController::class, 'index']);
         Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead']);
         Route::post('/notifications/{id}/read', [NotificationController::class, 'markRead']);
+
+        // Facturation des clients (S6)
+        Route::get('/invoices', [InvoiceController::class, 'index']);
+        Route::post('/invoices', [InvoiceController::class, 'store']);
+        Route::get('/invoices/{id}', [InvoiceController::class, 'show']);
+        Route::put('/invoices/{id}', [InvoiceController::class, 'update']);
+        Route::post('/invoices/{id}/send', [InvoiceController::class, 'send']);
+        Route::post('/invoices/{id}/mark-paid', [InvoiceController::class, 'markPaid']);
+        Route::post('/invoices/{id}/void', [InvoiceController::class, 'void'])->middleware('role:owner,admin,advisor');
+
+        // Abonnement du cabinet, encaissement Stripe Connect, numéros de taxes
+        Route::middleware('role:owner,admin')->group(function () {
+            Route::get('/billing', [BillingController::class, 'show']);
+            Route::put('/billing/taxes', [BillingController::class, 'updateTaxes']);
+            Route::post('/billing/connect/refresh', [BillingController::class, 'refreshConnect']);
+        });
+        Route::middleware('role:owner')->group(function () {
+            Route::post('/billing/subscribe', [BillingController::class, 'subscribe']);
+            Route::post('/billing/portal', [BillingController::class, 'portal']);
+            Route::post('/billing/connect', [BillingController::class, 'connect']);
+        });
 
         // Équipe du cabinet (propriétaires et administrateurs)
         Route::middleware('role:owner,admin')->group(function () {
@@ -238,6 +263,15 @@ Route::prefix('admin')->group(function () {
     });
 });
 
+// Facture vue et payée par le client via son lien (le jeton désigne le cabinet)
+Route::middleware(['throttle:public-read', 'cabinet.code:invoice'])->group(function () {
+    Route::get('/invoices/public/{token}', [PublicInvoiceController::class, 'show']);
+    Route::post('/invoices/public/{token}/checkout', [PublicInvoiceController::class, 'checkout']);
+});
+
+// Webhooks Stripe (signature vérifiée dans le contrôleur)
+Route::post('/stripe/webhook', [StripeWebhookController::class, 'handle']);
+
 // Inscription d'un nouveau cabinet (publique)
 Route::middleware('throttle:signup')->post('/cabinets/register', [CabinetRegistrationController::class, 'register']);
 
@@ -273,6 +307,7 @@ Route::prefix('client')->group(function () {
         Route::get('/portal', [ClientPortalController::class, 'overview']);
         Route::get('/profile', [ClientPortalController::class, 'profile']);
         Route::put('/profile', [ClientPortalController::class, 'updateProfile']);
+        Route::get('/invoices', [PublicInvoiceController::class, 'forClient']);
     });
 });
 

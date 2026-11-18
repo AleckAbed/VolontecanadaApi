@@ -75,6 +75,7 @@ class TeamController extends Controller
         ]);
 
         $emailSent = $this->sendInvitation($member, $me);
+        $this->syncSeats();
 
         return response()->json([
             'success' => true,
@@ -116,6 +117,9 @@ class TeamController extends Controller
         }
 
         $member->fill($data)->save();
+        if (array_key_exists('is_active', $data)) {
+            $this->syncSeats();
+        }
 
         // Désactivation : on coupe aussi les sessions en cours.
         if (array_key_exists('is_active', $data) && ! $data['is_active']) {
@@ -177,6 +181,15 @@ class TeamController extends Controller
             'last_login_at' => $a->last_login_at?->toIso8601String(),
             'is_me' => $viewer && $viewer->id === $a->id,
         ];
+    }
+
+    /** Sièges facturés = comptes actifs : l'abonnement Stripe suit l'équipe. */
+    private function syncSeats(): void
+    {
+        $cabinet = Cabinet::find(CurrentCabinet::require());
+        if ($cabinet) {
+            app(\App\Services\BillingService::class)->syncSeats($cabinet);
+        }
     }
 
     private function forbidden(string $message)

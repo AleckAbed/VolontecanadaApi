@@ -49,6 +49,10 @@ class PlatformCabinetController extends Controller
                 'clients_count' => (int) ($clients[$c->id] ?? 0),
                 'dossiers_count' => (int) ($dossiers[$c->id] ?? 0),
                 'last_login_at' => $lastLogin[$c->id] ?? null,
+                'subscription_status' => $c->subscription_status,
+                'trial_ends_at' => $c->trial_ends_at?->toDateString(),
+                'subscribed_seats' => $c->subscribed_seats,
+                'payments_enabled' => (bool) $c->stripe_charges_enabled,
             ]);
 
         return response()->json([

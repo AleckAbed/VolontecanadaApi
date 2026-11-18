@@ -34,6 +34,11 @@ class CabinetProvisioner
                 'province' => $province,
                 'is_active' => true,
             ]);
+            // Période d'essai gratuite (SUBSCRIPTION_TRIAL_DAYS, 30 jours par défaut).
+            $cabinet->forceFill([
+                'subscription_status' => 'trialing',
+                'trial_ends_at' => now()->addDays((int) config('services.stripe.trial_days', 30)),
+            ])->save();
 
             $owner = CurrentCabinet::runAs($cabinet->id, function () use ($ownerName, $ownerEmail, $ownerPassword) {
                 $owner = Admin::create([
