@@ -38,7 +38,7 @@ use Illuminate\Support\Facades\Route;
 
 // Routes d'authentification ADMIN
 Route::prefix('admin')->group(function () {
-    Route::post('/login', [AdminAuthController::class, 'login']);
+    Route::middleware('throttle:login')->post('/login', [AdminAuthController::class, 'login']);
 
     // Routes protégées pour les admins
     Route::middleware('auth:admin')->group(function () {
@@ -197,8 +197,8 @@ Route::prefix('admin')->group(function () {
 
 // Routes d'authentification CLIENT
 Route::prefix('client')->group(function () {   
-    Route::post('/register', [ClientAuthController::class, 'register']);
-    Route::post('/login', [ClientAuthController::class, 'login']);
+    // Inscription publique désactivée : un client n'est créé que par un cabinet.
+    Route::middleware('throttle:login')->post('/login', [ClientAuthController::class, 'login']);
 
     // Routes protégées pour les clients
     Route::middleware('auth:client')->group(function () {
@@ -207,16 +207,22 @@ Route::prefix('client')->group(function () {
     });
 });
 
-// Routes publiques pour les questionnaires
-Route::post('/questionnaires/verify', [QuestionnaireController::class, 'verifyAccess']);
-Route::post('/questionnaires/{code}/save', [QuestionnaireController::class, 'saveFormData']);
-Route::post('/questionnaires/{code}/submit', [QuestionnaireController::class, 'submitForm']);
+// Routes publiques pour les questionnaires (mêmes limites que les invitations)
+Route::middleware('throttle:public-verify')->post('/questionnaires/verify', [QuestionnaireController::class, 'verifyAccess']);
+Route::middleware('throttle:public-write')->group(function () {
+    Route::post('/questionnaires/{code}/save', [QuestionnaireController::class, 'saveFormData']);
+    Route::post('/questionnaires/{code}/submit', [QuestionnaireController::class, 'submitForm']);
+});
 
 // Routes publiques pour le remplissage de documents (client via token)
-Route::get('/documents/{token}', [DocumentController::class, 'getDocumentByToken']);
-Route::get('/documents/{token}/pdf', [DocumentController::class, 'serveBasePdfByToken']);
-Route::post('/documents/{token}/save', [DocumentController::class, 'saveProgress']);
-Route::post('/documents/{token}/submit', [DocumentController::class, 'submitDocument']);
+Route::middleware('throttle:public-read')->group(function () {
+    Route::get('/documents/{token}', [DocumentController::class, 'getDocumentByToken']);
+    Route::get('/documents/{token}/pdf', [DocumentController::class, 'serveBasePdfByToken']);
+});
+Route::middleware('throttle:public-write')->group(function () {
+    Route::post('/documents/{token}/save', [DocumentController::class, 'saveProgress']);
+    Route::post('/documents/{token}/submit', [DocumentController::class, 'submitDocument']);
+});
 
 // Routes publiques news (consultables par l'admin connecté ou non)
 Route::get('/news/articles', [NewsArticleController::class, 'publicIndex']);
@@ -228,15 +234,15 @@ Route::get('/news/sources', [NewsSourceController::class, 'publicIndex']);
 //  - verify (email+code) : 10/min par IP — protège contre bruteforce d'identifiants
 //  - lecture (show, pdf)  : 30/min par IP — permissif pour usage normal
 //  - écriture (save, complete, submit) : 60/min par IP — autorise auto-save fréquent
-Route::middleware('throttle:10,1')->group(function () {
+Route::middleware('throttle:public-verify')->group(function () {
     Route::post('/invitations/verify', [InvitationController::class, 'publicVerifyAccess']);
 });
-Route::middleware('throttle:30,1')->group(function () {
+Route::middleware('throttle:public-read')->group(function () {
     Route::get('/invitations/{code}', [InvitationController::class, 'publicShow']);
     Route::get('/invitations/{code}/items/{itemId}/pdf', [InvitationController::class, 'publicGetItemPdf']);
     Route::get('/invitations/{code}/attachments/{attachmentId}', [InvitationController::class, 'publicGetAttachment']);
 });
-Route::middleware('throttle:60,1')->group(function () {
+Route::middleware('throttle:public-write')->group(function () {
     Route::post('/invitations/{code}/items/{itemId}/save-form', [InvitationController::class, 'publicSaveFormItem']);
     Route::post('/invitations/{code}/items/{itemId}/save-document', [InvitationController::class, 'publicSaveDocumentItem']);
     Route::post('/invitations/{code}/items/{itemId}/complete', [InvitationController::class, 'publicCompleteItem']);
@@ -248,10 +254,10 @@ Route::middleware('throttle:60,1')->group(function () {
 
 // Routes COLLABORATEUR — espace de travail dédié
 Route::prefix('collaborator')->group(function () {
-    Route::post('/login', [CollaboratorAuthController::class, 'login']);
+    Route::middleware('throttle:login')->post('/login', [CollaboratorAuthController::class, 'login']);
 
     // Activation du compte via le lien envoyé par l'admin (public, throttle)
-    Route::middleware('throttle:30,1')->group(function () {
+    Route::middleware('throttle:public-verify')->group(function () {
         Route::post('/check-activation', [CollaboratorController::class, 'checkActivationToken']);
         Route::post('/activate', [CollaboratorController::class, 'activate']);
     });
