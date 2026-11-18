@@ -15,6 +15,8 @@ use App\Http\Controllers\Api\AdminAuthController;
 use App\Http\Controllers\Api\CabinetRegistrationController;
 use App\Http\Controllers\Api\ClientAccessController;
 use App\Http\Controllers\Api\ClientPortalController;
+use App\Http\Controllers\Api\ClientDataController;
+use App\Http\Controllers\Api\ComplianceController;
 use App\Http\Controllers\Api\FieldMapController;
 use App\Http\Controllers\Api\Platform\PlatformAuthController;
 use App\Http\Controllers\Api\Platform\PlatformCabinetController;
@@ -111,6 +113,15 @@ Route::prefix('admin')->group(function () {
         Route::get('/mandates/preview', [MandateController::class, 'preview']);
         Route::post('/mandates', [MandateController::class, 'store']);
         Route::post('/mandates/{id}/void', [MandateController::class, 'void']);
+
+        // Conformité (S8) : conservation des dossiers, demandes des clients, registre des destructions
+        Route::middleware('role:owner,admin')->group(function () {
+            Route::get('/compliance', [ComplianceController::class, 'overview']);
+            Route::put('/compliance/retention', [ComplianceController::class, 'updateRetention']);
+            Route::post('/compliance/dossiers/{id}/hold', [ComplianceController::class, 'holdDossier']);
+            Route::post('/compliance/requests/{id}/complete', [ComplianceController::class, 'completeRequest']);
+            Route::post('/compliance/requests/{id}/reject', [ComplianceController::class, 'rejectRequest']);
+        });
 
         // Abonnement du cabinet, encaissement Stripe Connect, numéros de taxes
         Route::middleware('role:owner,admin')->group(function () {
@@ -350,6 +361,11 @@ Route::prefix('client')->group(function () {
         Route::get('/profile', [ClientPortalController::class, 'profile']);
         Route::put('/profile', [ClientPortalController::class, 'updateProfile']);
         Route::get('/invoices', [PublicInvoiceController::class, 'forClient']);
+
+        // Droits sur ses renseignements (S8, 3.10)
+        Route::middleware('throttle:6,1')->get('/my-data/export', [ClientDataController::class, 'export']);
+        Route::get('/data-requests', [ClientDataController::class, 'requests']);
+        Route::middleware('throttle:6,1')->post('/data-requests', [ClientDataController::class, 'storeRequest']);
     });
 });
 

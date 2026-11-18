@@ -150,7 +150,7 @@ class BookingAndMandateTest extends TestCase
 
         $this->assertCount(1, $this->calendar->created);
         $this->assertTrue($this->calendar->created[0]['meet']);
-        Mail::assertSent(AppointmentMail::class, fn ($m) => $m->kind === 'confirmed' && $m->hasTo('marie@example.test') && count($m->attachments()) === 1);
+        Mail::assertQueued(AppointmentMail::class, fn ($m) => $m->kind === 'confirmed' && $m->hasTo('marie@example.test') && count($m->attachments()) === 1);
         $this->inCabinet(function () {
             $this->assertSame(1, Client::where('email', 'marie@example.test')->count());
             $this->assertSame(1, AdminNotification::where('type', 'appointment_booked')->count());
@@ -166,7 +166,7 @@ class BookingAndMandateTest extends TestCase
         $res = $this->book($id, '2026-11-24T15:00:00Z')->assertCreated()
             ->assertJsonPath('data.status', 'pending_payment');
         $this->assertStringStartsWith('https://checkout.stripe.test/', $res->json('data.checkout_url'));
-        Mail::assertNotSent(AppointmentMail::class);
+        Mail::assertNotQueued(AppointmentMail::class);
 
         // Créneau retenu pendant le paiement.
         $this->book($id, '2026-11-24T15:00:00Z', 'autre@example.test')->assertStatus(409);
@@ -179,7 +179,7 @@ class BookingAndMandateTest extends TestCase
         ]))->assertOk();
 
         $this->assertSame('confirmed', $this->inCabinet(fn () => Appointment::firstOrFail()->status));
-        Mail::assertSent(AppointmentMail::class, fn ($m) => $m->kind === 'confirmed');
+        Mail::assertQueued(AppointmentMail::class, fn ($m) => $m->kind === 'confirmed');
     }
 
     public function test_reservation_payante_sans_paiement_en_ligne_confirmee_et_facturee(): void
@@ -190,8 +190,8 @@ class BookingAndMandateTest extends TestCase
         $this->book($id, '2026-11-24T14:00:00Z')->assertCreated()
             ->assertJsonPath('data.status', 'confirmed')
             ->assertJsonPath('data.checkout_url', null);
-        Mail::assertSent(InvoiceMail::class);
-        Mail::assertSent(AppointmentMail::class);
+        Mail::assertQueued(InvoiceMail::class);
+        Mail::assertQueued(AppointmentMail::class);
         $this->assertSame('sent', $this->inCabinet(fn () => Invoice::firstOrFail()->status));
     }
 
@@ -206,7 +206,7 @@ class BookingAndMandateTest extends TestCase
         $this->postJson("/api/appointments/public/{$token}/cancel")->assertStatus(422);
 
         $this->assertSame(['evt_1'], $this->calendar->deleted);
-        Mail::assertSent(AppointmentMail::class, fn ($m) => $m->kind === 'cancelled');
+        Mail::assertQueued(AppointmentMail::class, fn ($m) => $m->kind === 'cancelled');
         $this->inCabinet(function () {
             $this->assertSame('cancelled', Appointment::firstOrFail()->status);
             $this->assertSame('void', Invoice::firstOrFail()->status);
@@ -235,7 +235,7 @@ class BookingAndMandateTest extends TestCase
         $this->getJson("/api/admin/mandates/preview?client_id={$client->id}")->assertOk()
             ->assertJsonPath('data.title', 'Mandat de représentation');
         $this->postJson('/api/admin/mandates', ['client_id' => $client->id])->assertCreated();
-        Mail::assertSent(MandateMail::class, fn ($m) => ! $m->signedCopy && $m->hasTo('marie@example.test'));
+        Mail::assertQueued(MandateMail::class, fn ($m) => ! $m->signedCopy && $m->hasTo('marie@example.test'));
         $mandate = $this->inCabinet(fn () => Mandate::firstOrFail());
         $this->assertStringContainsString('Marie Tremblay', $mandate->body);
 
@@ -250,7 +250,7 @@ class BookingAndMandateTest extends TestCase
         $this->assertSame('127.0.0.1', $mandate->signed_ip);
         $this->assertSame('TestBrowser/1.0', $mandate->signed_user_agent);
         $this->assertSame(hash('sha256', $mandate->body), $mandate->body_hash);
-        Mail::assertSent(MandateMail::class, fn ($m) => $m->signedCopy);
+        Mail::assertQueued(MandateMail::class, fn ($m) => $m->signedCopy);
         $this->assertSame(1, $this->inCabinet(fn () => AdminNotification::where('type', 'mandate_signed')->count()));
 
         // Un mandat signé ne s'annule pas depuis l'interface.
@@ -276,7 +276,7 @@ class BookingAndMandateTest extends TestCase
         $this->book($id, '2026-11-24T14:00:00Z')->assertCreated();
 
         $this->inCabinet(fn () => $this->assertSame(1, Mandate::whereNotNull('appointment_id')->count()));
-        Mail::assertSent(MandateMail::class);
+        Mail::assertQueued(MandateMail::class);
     }
 
     public function test_connexion_google_agenda_par_state(): void

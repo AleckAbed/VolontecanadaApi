@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Support\Documents;
 use App\Http\Controllers\Controller;
 use App\Models\Admin;
 use App\Models\FileFolder;
@@ -320,10 +321,10 @@ class FileManagerController extends Controller
                 }
             }
         }
-        if (!Storage::disk('local')->exists($item->path)) {
+        if (!Documents::disk()->exists($item->path)) {
             abort(404);
         }
-        return response()->file(Storage::disk('local')->path($item->path), [
+        return Documents::inline($item->path, [
             'Content-Disposition' => 'inline; filename="' . addslashes($item->original_filename) . '"',
         ]);
     }
@@ -358,8 +359,8 @@ class FileManagerController extends Controller
                 }
             }
         }
-        if (Storage::disk('local')->exists($item->path)) {
-            Storage::disk('local')->delete($item->path);
+        if (Documents::disk()->exists($item->path)) {
+            Documents::disk()->delete($item->path);
         }
         $item->delete();
         return response()->json(['success' => true]);
@@ -385,8 +386,8 @@ class FileManagerController extends Controller
             $this->deleteFolderRecursive($child);
         }
         foreach ($folder->items as $item) {
-            if (Storage::disk('local')->exists($item->path)) {
-                Storage::disk('local')->delete($item->path);
+            if (Documents::disk()->exists($item->path)) {
+                Documents::disk()->delete($item->path);
             }
             $item->delete();
         }

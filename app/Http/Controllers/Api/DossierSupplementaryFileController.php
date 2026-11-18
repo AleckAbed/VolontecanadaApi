@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Support\Documents;
 use App\Http\Controllers\Controller;
 use App\Models\Dossier;
 use App\Models\DossierSupplementaryFile;
@@ -36,7 +37,7 @@ class DossierSupplementaryFileController extends Controller
             'file' => 'required|file|max:51200', // 50 Mo, tout type
         ]);
         $file = $request->file('file');
-        $path = $file->store(CurrentCabinet::storagePath("dossier-supplementary/{$dossier->id}"), 'local');
+        $path = $file->store(CurrentCabinet::storagePath("dossier-supplementary/{$dossier->id}"), Documents::name());
         $rec = DossierSupplementaryFile::create([
             'dossier_id' => $dossier->id,
             'label' => $request->input('label'),
@@ -51,8 +52,8 @@ class DossierSupplementaryFileController extends Controller
     public function destroy($id)
     {
         $f = DossierSupplementaryFile::findOrFail($id);
-        if ($f->path && Storage::disk('local')->exists($f->path)) {
-            Storage::disk('local')->delete($f->path);
+        if ($f->path && Documents::disk()->exists($f->path)) {
+            Documents::disk()->delete($f->path);
         }
         $f->delete();
         return response()->json(['success' => true]);
@@ -104,7 +105,7 @@ class DossierSupplementaryFileController extends Controller
                 // Si on demande la version remplie : priorité collab > client > rien
                 if ($filled) {
                     $path = null;
-                    if ($doc->filled_pdf_path && Storage::disk('local')->exists($doc->filled_pdf_path)) {
+                    if ($doc->filled_pdf_path && Documents::disk()->exists($doc->filled_pdf_path)) {
                         $path = $doc->filled_pdf_path;
                     } elseif ($doc->document_template_id) {
                         $clientFill = InvitationItem::whereHas('invitation', fn($q) => $q->where('dossier_id', $dossier->id))
@@ -112,29 +113,29 @@ class DossierSupplementaryFileController extends Controller
                             ->whereNotNull('pdf_filled_path')
                             ->orderByDesc('last_saved_at')
                             ->first();
-                        if ($clientFill && Storage::disk('local')->exists($clientFill->pdf_filled_path)) {
+                        if ($clientFill && Documents::disk()->exists($clientFill->pdf_filled_path)) {
                             $path = $clientFill->pdf_filled_path;
                         }
                     }
                 } else {
                     $path = $doc->template_path;
                 }
-                if (!$path || !Storage::disk('local')->exists($path)) continue;
+                if (!$path || !Documents::disk()->exists($path)) continue;
                 $folder = $kind === 'ircc' ? 'IRCC' : 'Provincial-FO';
                 $extension = pathinfo($path, PATHINFO_EXTENSION) ?: 'pdf';
                 $name = $doc->name . ($filled ? ' (rempli)' : '') . '.' . $extension;
-                $zip->addFile(Storage::disk('local')->path($path), "{$folder}/{$name}");
+                $zip->addFromString("{$folder}/{$name}", Documents::disk()->get($path));
                 $added++;
             } elseif ($kind === 'supplementary') {
                 $f = DossierSupplementaryFile::where('dossier_id', $dossier->id)->where('id', $id)->first();
-                if (!$f || !Storage::disk('local')->exists($f->path)) continue;
-                $zip->addFile(Storage::disk('local')->path($f->path), "Supplementaires/{$f->original_filename}");
+                if (!$f || !Documents::disk()->exists($f->path)) continue;
+                $zip->addFromString("Supplementaires/{$f->original_filename}", Documents::disk()->get($f->path));
                 $added++;
             } elseif ($kind === 'client_upload') {
                 $u = InvitationUpload::whereHas('invitation', fn($q) => $q->where('dossier_id', $dossier->id))
                     ->where('id', $id)->first();
-                if (!$u || !Storage::disk('local')->exists($u->path)) continue;
-                $zip->addFile(Storage::disk('local')->path($u->path), "Fichiers-Client/{$u->original_filename}");
+                if (!$u || !Documents::disk()->exists($u->path)) continue;
+                $zip->addFromString("Fichiers-Client/{$u->original_filename}", Documents::disk()->get($u->path));
                 $added++;
             }
         }
@@ -211,12 +212,11 @@ class DossierSupplementaryFileController extends Controller
 
     private function servePath(string $path, string $filename, ?string $mime, bool $forceDownload)
     {
-        if (!$path || !Storage::disk('local')->exists($path)) {
+        if (!$path || !Documents::disk()->exists($path)) {
             return response()->json(['success' => false, 'message' => 'Fichier introuvable'], 404);
         }
-        $absPath = Storage::disk('local')->path($path);
         $disposition = $forceDownload ? 'attachment' : 'inline';
-        return response()->file($absPath, [
+        return Documents::inline($path, [
             'Content-Type' => $mime ?: 'application/octet-stream',
             'Content-Disposition' => $disposition . '; filename="' . $filename . '"',
         ]);

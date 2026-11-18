@@ -3,17 +3,12 @@
 namespace App\Mail;
 
 use App\Models\Admin;
-use Illuminate\Bus\Queueable;
-use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
-use Illuminate\Queue\SerializesModels;
 
 /** Récapitulatif quotidien des nouvelles échéances à surveiller. */
-class DeadlineDigestMail extends Mailable
+class DeadlineDigestMail extends QueuedMail
 {
-    use Queueable, SerializesModels;
-
     /** @param array<int, array{title: string, body: ?string, link: ?string, overdue: bool}> $items */
     public function __construct(public Admin $admin, public string $cabinetName, public array $items) {}
 

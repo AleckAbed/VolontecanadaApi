@@ -38,7 +38,29 @@ class Dossier extends Model
             'allow_collab_uploads' => 'boolean',
             'send_base_docs_to_client' => 'boolean',
             'collab_access_revoked' => 'boolean',
+            'closed_at' => 'datetime',
+            'retention_hold' => 'boolean',
+            'retention_notified_at' => 'datetime',
         ];
+    }
+
+    /** Statuts d'un dossier terminé : le délai de conservation (3.9) court à partir de la fermeture. */
+    public const CLOSED_STATUSES = ['accorde', 'refuse', 'rejete', 'annule'];
+
+    protected static function booted(): void
+    {
+        static::saving(function (Dossier $dossier) {
+            if (! $dossier->isDirty('status') && $dossier->exists) {
+                return;
+            }
+            $closed = in_array($dossier->status, self::CLOSED_STATUSES, true);
+            if ($closed && ! $dossier->closed_at) {
+                $dossier->closed_at = now();
+            } elseif (! $closed) {
+                $dossier->closed_at = null;
+                $dossier->retention_notified_at = null;
+            }
+        });
     }
 
     public function client(): BelongsTo

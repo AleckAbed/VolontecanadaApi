@@ -3,16 +3,11 @@
 namespace App\Mail;
 
 use App\Models\Invitation;
-use Illuminate\Bus\Queueable;
-use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
-use Illuminate\Queue\SerializesModels;
 
-class InvitationMail extends Mailable
+class InvitationMail extends QueuedMail
 {
-    use Queueable, SerializesModels;
-
     public function __construct(public Invitation $invitation) {}
 
     public function envelope(): Envelope
@@ -49,5 +44,11 @@ class InvitationMail extends Mailable
                 'customMessage' => $this->invitation->message,
             ],
         );
+    }
+
+    /** Échec définitif après les 3 essais : le statut affiché au cabinet passe à « non envoyé ». */
+    public function failed(\Throwable $e): void
+    {
+        $this->invitation->forceFill(['email_sent' => false, 'email_error' => mb_substr($e->getMessage(), 0, 500)])->saveQuietly();
     }
 }

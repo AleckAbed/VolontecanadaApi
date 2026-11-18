@@ -4,16 +4,11 @@ namespace App\Mail;
 
 use App\Models\Collaborator;
 use App\Models\Dossier;
-use Illuminate\Bus\Queueable;
-use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
-use Illuminate\Queue\SerializesModels;
 
-class CollaboratorDossierAssignedMail extends Mailable
+class CollaboratorDossierAssignedMail extends QueuedMail
 {
-    use Queueable, SerializesModels;
-
     public function __construct(public Collaborator $collaborator, public Dossier $dossier) {}
 
     public function envelope(): Envelope

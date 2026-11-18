@@ -179,7 +179,7 @@ class DeadlinesAndActionsTest extends TestCase
         $notifs = $this->inCabinet(fn () => AdminNotification::all());
         $this->assertCount(1, $notifs, 'Un seul rappel, au propriétaire (l’adjoint ne suit pas les échéances).');
         $this->assertSame('deadline_reminder', $notifs->first()->type);
-        Mail::assertSent(DeadlineDigestMail::class, 1);
+        Mail::assertQueued(DeadlineDigestMail::class, 1);
 
         // Une fois dépassée, l'échéance notifie une seconde fois, comme « en retard ».
         $this->travel(3)->days();

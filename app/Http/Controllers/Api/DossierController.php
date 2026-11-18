@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Support\Documents;
 use App\Http\Controllers\Controller;
+use App\Services\Compliance\DataPurger;
 use App\Mail\CollaboratorDossierAssignedMail;
 use App\Models\Collaborator;
 use App\Models\Dossier;
@@ -194,12 +196,12 @@ class DossierController extends Controller
 
         foreach ($templates as $tpl) {
             if (in_array($tpl->id, $alreadyAttached, true)) continue;
-            if (!$tpl->pdf_path || !Storage::disk('local')->exists($tpl->pdf_path)) {
+            if (!$tpl->pdf_path || !Documents::disk()->exists($tpl->pdf_path)) {
                 continue;
             }
             $extension = pathinfo($tpl->pdf_path, PATHINFO_EXTENSION) ?: 'pdf';
             $newPath = CurrentCabinet::storagePath("dossier-documents/{$dossier->id}/" . uniqid('auto_') . '.' . $extension);
-            Storage::disk('local')->copy($tpl->pdf_path, $newPath);
+            Documents::disk()->copy($tpl->pdf_path, $newPath);
 
             DossierDocument::create([
                 'dossier_id' => $dossier->id,
@@ -309,7 +311,8 @@ class DossierController extends Controller
     public function destroy(int $id)
     {
         $dossier = Dossier::findOrFail($id);
-        $dossier->delete();
+        // Supprime aussi les fichiers et formulaires du dossier (avant : restaient sur le disque).
+        app(DataPurger::class)->purgeDossier($dossier, 'manual', request()->user()?->id);
 
         return response()->json([
             'success' => true,

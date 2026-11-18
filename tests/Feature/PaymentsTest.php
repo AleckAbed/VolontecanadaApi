@@ -117,7 +117,7 @@ class PaymentsTest extends TestCase
     {
         $id = $this->createInvoice();
         $this->postJson("/api/admin/invoices/{$id}/send")->assertOk()->assertJsonPath('email_sent', true);
-        Mail::assertSent(InvoiceMail::class, fn ($m) => ! $m->isReceipt && $m->hasTo('marie@example.test'));
+        Mail::assertQueued(InvoiceMail::class, fn ($m) => ! $m->isReceipt && $m->hasTo('marie@example.test'));
 
         $this->putJson("/api/admin/invoices/{$id}", [
             'client_id' => $this->client->id, 'lines' => [['description' => 'Modif', 'quantity' => 1, 'unit_price' => 1]],
@@ -154,7 +154,7 @@ class PaymentsTest extends TestCase
         $invoice = $this->inCabinet(fn () => Invoice::find($id));
         $this->assertSame('paid', $invoice->status);
         $this->assertSame('card', $invoice->payment_method);
-        Mail::assertSent(InvoicePaidMail::class, 1);
+        Mail::assertQueued(InvoicePaidMail::class, 1);
         $this->assertSame(1, $this->inCabinet(fn () => AdminNotification::where('type', 'invoice_paid')->count()));
     }
 
@@ -163,7 +163,7 @@ class PaymentsTest extends TestCase
         $paid = $this->createInvoice();
         $this->postJson("/api/admin/invoices/{$paid}/mark-paid", ['method' => 'transfer', 'reference' => 'Interac 123'])->assertOk();
         $this->postJson("/api/admin/invoices/{$paid}/void")->assertStatus(422); // payée : pas d'annulation ici
-        Mail::assertSent(InvoicePaidMail::class);
+        Mail::assertQueued(InvoicePaidMail::class);
 
         $draft = $this->createInvoice();
         $this->postJson("/api/admin/invoices/{$draft}/void")->assertOk();

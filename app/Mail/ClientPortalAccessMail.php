@@ -5,16 +5,11 @@ namespace App\Mail;
 use App\Models\Cabinet;
 use App\Models\Client;
 use App\Support\AdminAccessTokens;
-use Illuminate\Bus\Queueable;
-use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
-use Illuminate\Queue\SerializesModels;
 
-class ClientPortalAccessMail extends Mailable
+class ClientPortalAccessMail extends QueuedMail
 {
-    use Queueable, SerializesModels;
-
     public function __construct(
         public Client $client,
         public ?Cabinet $cabinet,

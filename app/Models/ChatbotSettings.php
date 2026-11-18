@@ -12,6 +12,9 @@ class ChatbotSettings extends Model
     protected $table = 'chatbot_settings';
 
     protected $fillable = [
+        'enabled',
+        'enabled_at',
+        'enabled_by',
         'allow_immigration_questions',
         'immigration_questions_for',
         'allow_dossier_lookup',
@@ -20,6 +23,8 @@ class ChatbotSettings extends Model
     ];
 
     protected $casts = [
+        'enabled' => 'boolean',
+        'enabled_at' => 'datetime',
         'allow_immigration_questions' => 'boolean',
         'allow_dossier_lookup' => 'boolean',
         'allow_client_lookup' => 'boolean',
@@ -33,6 +38,7 @@ class ChatbotSettings extends Model
         $row = self::query()->first();
         if (!$row) {
             $row = self::create([
+                'enabled' => false,
                 'allow_immigration_questions' => false,
                 'immigration_questions_for' => 'admin',
                 'allow_dossier_lookup' => false,
