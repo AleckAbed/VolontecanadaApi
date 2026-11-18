@@ -1,6 +1,9 @@
 <?php
 
+use App\Http\Controllers\Api\ActionFeedController;
 use App\Http\Controllers\Api\AdminAccessController;
+use App\Http\Controllers\Api\DeadlineController;
+use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\AdminAuthController;
 use App\Http\Controllers\Api\CabinetRegistrationController;
 use App\Http\Controllers\Api\ClientAccessController;
@@ -59,6 +62,18 @@ Route::prefix('admin')->group(function () {
     Route::middleware(['auth:admin', 'cabinet'])->group(function () {
         Route::post('/logout', [AdminAuthController::class, 'logout']);
         Route::get('/me', [AdminAuthController::class, 'me']);
+
+        // Tableau « action requise », échéances, notifications (S5)
+        Route::get('/actions', [ActionFeedController::class, 'index']);
+        Route::post('/invitations/{id}/reviewed', [ActionFeedController::class, 'markReviewed']);
+        Route::get('/deadlines', [DeadlineController::class, 'index']);
+        Route::post('/deadlines', [DeadlineController::class, 'store']);
+        Route::put('/deadlines/{id}', [DeadlineController::class, 'update']);
+        Route::post('/deadlines/{id}/complete', [DeadlineController::class, 'complete']);
+        Route::delete('/deadlines/{id}', [DeadlineController::class, 'destroy'])->middleware('role:owner,admin,advisor');
+        Route::get('/notifications', [NotificationController::class, 'index']);
+        Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead']);
+        Route::post('/notifications/{id}/read', [NotificationController::class, 'markRead']);
 
         // Équipe du cabinet (propriétaires et administrateurs)
         Route::middleware('role:owner,admin')->group(function () {

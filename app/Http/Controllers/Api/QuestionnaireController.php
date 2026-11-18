@@ -358,6 +358,9 @@ class QuestionnaireController extends Controller
                 $item->markCompleted();
                 $item->invitation?->recomputeStatus();
             }
+        } else {
+            // Questionnaire envoyé seul : on prévient le cabinet (sinon c'est l'envoi complet qui notifie).
+            app(\App\Services\NotificationService::class)->questionnaireSubmitted($questionnaireRequest);
         }
 
         return response()->json([

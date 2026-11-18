@@ -3,7 +3,11 @@
 use App\Models\PlatformAdmin;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schedule;
 use Illuminate\Support\Facades\Validator;
+
+// Rappels d'échéances chaque matin (nécessite le cron « php artisan schedule:run » en production).
+Schedule::command('cabinet:deadline-reminders')->dailyAt('07:00')->timezone('America/Toronto');
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
