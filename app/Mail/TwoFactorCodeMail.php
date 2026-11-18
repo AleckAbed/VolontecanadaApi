@@ -2,14 +2,15 @@
 
 namespace App\Mail;
 
-use App\Models\Admin;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 
 /** Code de connexion à 6 chiffres (double authentification par courriel, 2.7). Envoyé sans file d'attente. */
 class TwoFactorCodeMail extends QueuedMail
 {
-    public function __construct(public Admin $admin, public string $code) {}
+    /** @param Model $person Admin ou Collaborator */
+    public function __construct(public Model $person, public string $code) {}
 
     public function envelope(): Envelope
     {
@@ -18,6 +19,6 @@ class TwoFactorCodeMail extends QueuedMail
 
     public function content(): Content
     {
-        return new Content(view: 'emails.two-factor-code', with: ['name' => $this->admin->name, 'code' => $this->code]);
+        return new Content(view: 'emails.two-factor-code', with: ['name' => $this->person->getAttribute('name') ?: trim($this->person->getAttribute('first_name') . ' ' . $this->person->getAttribute('last_name')), 'code' => $this->code]);
     }
 }

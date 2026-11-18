@@ -29,6 +29,9 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        // Suivi des erreurs (inactif sans SENTRY_LARAVEL_DSN).
+        \Sentry\Laravel\Integration::handles($exceptions);
+
         // Pour les routes API : si non authentifié, renvoyer 401 JSON au lieu de rediriger vers [login].
         $exceptions->renderable(function (\Illuminate\Auth\AuthenticationException $e, $request) {
             if ($request->expectsJson() || $request->is('api/*')) {
