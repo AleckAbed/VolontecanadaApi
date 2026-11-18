@@ -38,6 +38,8 @@ class Admin extends Authenticatable
         'password',
         'remember_token',
         'access_token_hash',
+        'google_refresh_token',
+        'google_oauth_state',
     ];
 
     /**
@@ -55,6 +57,8 @@ class Admin extends Authenticatable
             'lock_screen_interval' => 'integer',
             'access_token_expires_at' => 'datetime',
             'last_login_at' => 'datetime',
+            // Jeton Google Agenda chiffré avec APP_KEY : illisible en cas de fuite de la base seule.
+            'google_refresh_token' => 'encrypted',
         ];
     }
 

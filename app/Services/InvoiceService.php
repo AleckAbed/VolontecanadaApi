@@ -125,6 +125,9 @@ class InvoiceService
             'issued_at' => $invoice->issued_at ?? now(),
         ])->save();
 
+        // Facture d'une réservation payante : le rendez-vous en attente est confirmé.
+        app(\App\Services\Booking\AppointmentScheduler::class)->confirmByInvoice($invoice);
+
         $cabinet = Cabinet::find($invoice->cabinet_id);
         $client = $invoice->client;
         if ($client?->email) {

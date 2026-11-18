@@ -18,6 +18,15 @@ class AppServiceProvider extends ServiceProvider
     {
         // Paiements : Stripe si une clé est configurée, sinon passerelle « non configurée »
         // (les écrans l'indiquent ; les tests remplacent par FakeGateway).
+        // Google Agenda : réel si GOOGLE_CLIENT_ID est configuré, sinon indisponible.
+        $this->app->singleton(\App\Services\Calendar\CalendarGateway::class, function () {
+            $g = config('services.google');
+
+            return ! empty($g['client_id']) && ! empty($g['client_secret'])
+                ? new \App\Services\Calendar\GoogleCalendarGateway($g['client_id'], $g['client_secret'], $g['redirect'])
+                : new \App\Services\Calendar\UnconfiguredCalendarGateway();
+        });
+
         $this->app->singleton(\App\Services\Payments\PaymentGateway::class, function () {
             $cfg = config('services.stripe');
 
