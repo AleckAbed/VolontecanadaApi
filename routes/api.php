@@ -188,8 +188,7 @@ Route::prefix('admin')->group(function () {
         Route::get('/profile/lock-screen-backgrounds/{filename}', [AdminProfileController::class, 'serveLockScreenBackground'])->where('filename', '[A-Za-z0-9\-\._]+');
 
         // Routes pour les questionnaires
-        Route::post('/questionnaires/send', [QuestionnaireController::class, 'sendQuestionnaire']);
-        Route::get('/questionnaires', [QuestionnaireController::class, 'listQuestionnaires']);
+        // (2.16) L'envoi direct d'un questionnaire et sa liste sont retirés : tout passe par « Envois ».
         Route::get('/questionnaires/{id}', [QuestionnaireController::class, 'getQuestionnaire']);
         Route::get('/clients', [QuestionnaireController::class, 'getClients']);
 

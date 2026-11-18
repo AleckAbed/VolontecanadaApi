@@ -102,7 +102,9 @@ class NotificationService
             'questionnaire_submitted',
             "{$name} a soumis son questionnaire",
             null,
-            "/questionnaires/{$qr->id}",
+            ($invitationId = $qr->invitation_item_id ? \Illuminate\Support\Facades\DB::table('invitation_items')->where('id', $qr->invitation_item_id)->value('invitation_id') : null)
+                ? "/envois/{$invitationId}"
+                : "/questionnaires/{$qr->id}",
             "questionnaire_submitted:{$qr->id}",
         );
     }

@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\QuestionnaireRequest;
 use App\Models\Client;
 use App\Models\Admin;
-use App\Mail\QuestionnaireInvitation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Carbon\Carbon;
@@ -16,99 +15,6 @@ use App\Support\Tenancy\CabinetRule;
 
 class QuestionnaireController extends Controller
 {
-    /**
-     * Envoyer un formulaire à un client (Admin seulement)
-     */
-    public function sendQuestionnaire(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
-            'client_type' => 'required|in:existing,custom',
-            'client_id' => ['required_if:client_type,existing', CabinetRule::exists('clients')],
-            'custom_name' => 'required_if:client_type,custom|string|max:255',
-            'email' => 'required|email|max:255',
-            'phone' => 'required_if:client_type,custom|string|max:20',
-            'form_type' => 'required|string|max:255',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Erreur de validation',
-                'errors' => $validator->errors(),
-            ], 422);
-        }
-
-        $admin = $request->user('admin');
-        if (!$admin) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Non autorisé',
-            ], 401);
-        }
-
-        // Récupérer l'email selon le type de client
-        $email = $request->email;
-        if ($request->client_type === 'existing') {
-            $client = Client::findOrFail($request->client_id);
-            $email = $client->email;
-        }
-
-        // Générer un code unique
-        $uniqueCode = QuestionnaireRequest::generateUniqueCode();
-
-        // Créer la demande de formulaire
-        $questionnaireRequest = QuestionnaireRequest::create([
-            'unique_code' => $uniqueCode,
-            'client_type' => $request->client_type,
-            'client_id' => $request->client_type === 'existing' ? $request->client_id : null,
-            'custom_name' => $request->client_type === 'custom' ? $request->custom_name : null,
-            'email' => $email,
-            'phone' => $request->client_type === 'custom' ? $request->phone : null,
-            'form_type' => $request->form_type,
-            'status' => 'pending',
-            'sent_at' => now(),
-            'expires_at' => Carbon::now()->addDays(14),
-            'sent_by' => $admin->id,
-        ]);
-
-        // Envoyer l'email avec le lien et le code
-        $emailSent = false;
-        $emailError = null;
-        try {
-            Mail::to($email)->send(new QuestionnaireInvitation($questionnaireRequest));
-            $emailSent = true;
-        } catch (\Exception $e) {
-            $emailError = $e->getMessage();
-            \Log::error('Erreur lors de l\'envoi de l\'email questionnaire', [
-                'questionnaire_id' => $questionnaireRequest->id,
-                'email' => $email,
-                'error' => $emailError,
-            ]);
-        }
-
-        $questionnaireRequest->update([
-            'email_sent' => $emailSent,
-            'email_error' => $emailError,
-        ]);
-
-        $message = $emailSent
-            ? 'Formulaire envoyé avec succès. Un email a été envoyé au client.'
-            : 'Formulaire créé mais l\'email n\'a pas pu être envoyé au client. Vérifiez la configuration SMTP et les logs (storage/logs/laravel.log).';
-
-        return response()->json([
-            'success' => true,
-            'message' => $message,
-            'email_sent' => $emailSent,
-            'email_error' => $emailError,
-            'data' => [
-                'id' => $questionnaireRequest->id,
-                'unique_code' => $uniqueCode,
-                'email' => $email,
-                'expires_at' => $questionnaireRequest->expires_at->format('Y-m-d H:i:s'),
-            ],
-        ], 201);
-    }
-
     /**
      * Vérifier l'accès au formulaire (Email + Code)
      */
@@ -373,29 +279,6 @@ class QuestionnaireController extends Controller
     }
 
     /**
-     * Lister les formulaires envoyés (Admin)
-     */
-    public function listQuestionnaires(Request $request)
-    {
-        $admin = $request->user('admin');
-        if (!$admin) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Non autorisé',
-            ], 401);
-        }
-
-        $questionnaires = QuestionnaireRequest::with(['client', 'sentBy'])
-            ->orderBy('created_at', 'desc')
-            ->paginate(15);
-
-        return response()->json([
-            'success' => true,
-            'data' => $questionnaires,
-        ], 200);
-    }
-
-    /**
      * Obtenir les détails d'un formulaire (Admin)
      */
     public function getQuestionnaire($id)
@@ -403,9 +286,14 @@ class QuestionnaireController extends Controller
         $questionnaire = QuestionnaireRequest::with(['client', 'sentBy'])
             ->findOrFail($id);
 
+        $data = $questionnaire->toArray();
+        $data['invitation_id'] = $questionnaire->invitation_item_id
+            ? \Illuminate\Support\Facades\DB::table('invitation_items')->where('id', $questionnaire->invitation_item_id)->value('invitation_id')
+            : null;
+
         return response()->json([
             'success' => true,
-            'data' => $questionnaire,
+            'data' => $data,
         ], 200);
     }
 
