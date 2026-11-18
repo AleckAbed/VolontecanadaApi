@@ -280,6 +280,9 @@ class QuestionnaireController extends Controller
 
         $questionnaireRequest->refresh();
 
+        // Questionnaire général : ses réponses alimentent le profil du client (préremplissage des PDF).
+        app(\App\Services\ClientProfileService::class)->syncFromQuestionnaire($questionnaireRequest);
+
         // Sync linked invitation_item to in_progress
         if ($questionnaireRequest->invitation_item_id) {
             $item = \App\Models\InvitationItem::find($questionnaireRequest->invitation_item_id);
@@ -344,6 +347,9 @@ class QuestionnaireController extends Controller
             'status' => 'completed',
             'completed_at' => now(),
         ]);
+
+        // Questionnaire général : ses réponses alimentent le profil du client (préremplissage des PDF).
+        app(\App\Services\ClientProfileService::class)->syncFromQuestionnaire($questionnaireRequest);
 
         // If this questionnaire belongs to an invitation, mark the invitation item completed
         if ($questionnaireRequest->invitation_item_id) {

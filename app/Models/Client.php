@@ -43,6 +43,7 @@ class Client extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'access_token_hash',
     ];
 
     /**
@@ -58,6 +59,8 @@ class Client extends Authenticatable
             'date_of_birth' => 'date',
             'is_active' => 'boolean',
             'in_canada' => 'boolean',
+            'access_token_expires_at' => 'datetime',
+            'last_login_at' => 'datetime',
         ];
     }
 

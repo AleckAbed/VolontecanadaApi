@@ -192,6 +192,7 @@ class CollaboratorWorkspaceController extends Controller
                 'status' => $doc->status,
                 'has_filled_pdf' => (bool) $doc->filled_pdf_path,
                 'form_data' => $doc->form_data,
+                'prefill' => (object) app(\App\Services\ClientProfileService::class)->prefillForDossierDocument($doc),
                 'last_saved_at' => $doc->last_saved_at?->format('Y-m-d H:i'),
             ],
         ]);

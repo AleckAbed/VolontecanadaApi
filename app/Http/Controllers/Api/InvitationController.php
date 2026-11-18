@@ -751,6 +751,19 @@ class InvitationController extends Controller
                 ->keyBy('unique_code');
         }
 
+        // Préremplissage des PDF à partir du profil du client (« il répond une fois »).
+        $profiles = app(\App\Services\ClientProfileService::class);
+        $profile = $inv->items->contains('item_kind', 'document') ? $profiles->forInvitation($inv) : [];
+        $prefillFor = function ($i) use ($profiles, $profile) {
+            if ($i->item_kind !== 'document' || $profile === []) {
+                return [];
+            }
+            $template = $i->documentTemplate
+                ?? ($i->dossierDocument?->document_template_id ? \App\Models\DocumentTemplate::find($i->dossierDocument->document_template_id) : null);
+
+            return $profiles->prefill($template, $profile);
+        };
+
         return [
             'unique_code' => $inv->unique_code,
             'client_name' => $inv->custom_name
@@ -769,7 +782,7 @@ class InvitationController extends Controller
             'status' => $inv->status,
             'expires_at' => $inv->expires_at?->format('Y-m-d H:i'),
             'is_expired' => $inv->isExpired(),
-            'items' => $inv->items->map(function ($i) use ($linkedQrs) {
+            'items' => $inv->items->map(function ($i) use ($linkedQrs, $prefillFor) {
                 // For form items, derive status from the linked questionnaire
                 $effectiveStatus = $i->status;
                 $linkedQr = null;
@@ -799,6 +812,8 @@ class InvitationController extends Controller
                     'dossier_document_id' => $i->dossier_document_id,
                     'linked_questionnaire_code' => $i->linked_questionnaire_code,
                     'form_data' => $i->form_data,
+                    // Valeurs tirées du profil ; le front les applique sous les valeurs déjà saisies.
+                    'prefill' => (object) $prefillFor($i),
                     'has_filled_pdf' => !empty($i->pdf_filled_path)
                         || ($i->dossierDocument && !empty($i->dossierDocument->filled_pdf_path)),
                     'last_saved_at' => $i->last_saved_at?->format('Y-m-d H:i'),
