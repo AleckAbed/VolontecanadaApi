@@ -32,6 +32,8 @@ class ResolveCabinetFromCode
         'document' => [DocumentRequest::class, 'token'],
         'activation' => [Collaborator::class, 'activation_token'],
         'invoice' => [\App\Models\Invoice::class, 'public_token'],
+        'appointment' => [\App\Models\Appointment::class, 'public_token'],
+        'mandate' => [\App\Models\Mandate::class, 'public_token'],
     ];
 
     public function handle(Request $request, Closure $next, string $type)

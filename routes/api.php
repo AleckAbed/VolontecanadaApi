@@ -3,6 +3,9 @@
 use App\Http\Controllers\Api\ActionFeedController;
 use App\Http\Controllers\Api\AdminAccessController;
 use App\Http\Controllers\Api\BillingController;
+use App\Http\Controllers\Api\BookingAdminController;
+use App\Http\Controllers\Api\MandateController;
+use App\Http\Controllers\Api\PublicBookingController;
 use App\Http\Controllers\Api\DeadlineController;
 use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\PublicInvoiceController;
@@ -87,6 +90,27 @@ Route::prefix('admin')->group(function () {
         Route::post('/invoices/{id}/send', [InvoiceController::class, 'send']);
         Route::post('/invoices/{id}/mark-paid', [InvoiceController::class, 'markPaid']);
         Route::post('/invoices/{id}/void', [InvoiceController::class, 'void'])->middleware('role:owner,admin,advisor');
+
+        // Réservation en ligne, Google Agenda (S7)
+        Route::get('/booking', [BookingAdminController::class, 'overview']);
+        Route::get('/booking/appointments', [BookingAdminController::class, 'appointments']);
+        Route::post('/booking/appointments/{id}/cancel', [BookingAdminController::class, 'cancelAppointment']);
+        Route::get('/booking/availability', [BookingAdminController::class, 'availability']);
+        Route::put('/booking/availability', [BookingAdminController::class, 'updateAvailability']);
+        Route::post('/google/connect', [BookingAdminController::class, 'googleConnect']);
+        Route::post('/google/disconnect', [BookingAdminController::class, 'googleDisconnect']);
+        Route::middleware('role:owner,admin')->group(function () {
+            Route::put('/booking/settings', [BookingAdminController::class, 'updateSettings']);
+            Route::post('/booking/services', [BookingAdminController::class, 'storeService']);
+            Route::put('/booking/services/{id}', [BookingAdminController::class, 'updateService']);
+            Route::delete('/booking/services/{id}', [BookingAdminController::class, 'destroyService']);
+        });
+
+        // Mandats de représentation (S7)
+        Route::get('/mandates', [MandateController::class, 'index']);
+        Route::get('/mandates/preview', [MandateController::class, 'preview']);
+        Route::post('/mandates', [MandateController::class, 'store']);
+        Route::post('/mandates/{id}/void', [MandateController::class, 'void']);
 
         // Abonnement du cabinet, encaissement Stripe Connect, numéros de taxes
         Route::middleware('role:owner,admin')->group(function () {
@@ -268,6 +292,24 @@ Route::middleware(['throttle:public-read', 'cabinet.code:invoice'])->group(funct
     Route::get('/invoices/public/{token}', [PublicInvoiceController::class, 'show']);
     Route::post('/invoices/public/{token}/checkout', [PublicInvoiceController::class, 'checkout']);
 });
+
+// Réservation publique d'un cabinet (/reserver/{slug}) et rendez-vous géré par son lien
+Route::middleware('throttle:public-read')->group(function () {
+    Route::get('/booking/{slug}', [PublicBookingController::class, 'show']);
+    Route::get('/booking/{slug}/slots', [PublicBookingController::class, 'slots']);
+});
+Route::middleware('throttle:public-write')->post('/booking/{slug}/appointments', [PublicBookingController::class, 'book']);
+Route::middleware(['throttle:public-read', 'cabinet.code:appointment'])->group(function () {
+    Route::get('/appointments/public/{token}', [PublicBookingController::class, 'manage']);
+    Route::post('/appointments/public/{token}/cancel', [PublicBookingController::class, 'cancel']);
+});
+
+// Mandat lu et signé par le client via son lien
+Route::middleware(['throttle:public-read', 'cabinet.code:mandate'])->get('/mandates/public/{token}', [MandateController::class, 'publicShow']);
+Route::middleware(['throttle:public-write', 'cabinet.code:mandate'])->post('/mandates/public/{token}/sign', [MandateController::class, 'sign']);
+
+// Retour de l'autorisation Google Agenda (le state désigne l'admin)
+Route::middleware('throttle:public-verify')->get('/google/callback', [BookingAdminController::class, 'googleCallback']);
 
 // Webhooks Stripe (signature vérifiée dans le contrôleur)
 Route::post('/stripe/webhook', [StripeWebhookController::class, 'handle']);

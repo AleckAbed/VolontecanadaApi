@@ -44,6 +44,17 @@ return [
         'platform_fee_percent' => (float) env('STRIPE_PLATFORM_FEE_PERCENT', 0),
     ],
 
+    /*
+     * Google Agenda (S7) — OAuth par membre du personnel : les créneaux occupés
+     * de son agenda bloquent la réservation, et chaque rendez-vous y est ajouté
+     * avec un lien Google Meet. Sans GOOGLE_CLIENT_ID, la fonction est masquée.
+     */
+    'google' => [
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        'redirect' => env('GOOGLE_REDIRECT_URI', rtrim(env('APP_URL', 'http://localhost:8000'), '/') . '/api/google/callback'),
+    ],
+
     'gemini' => [
         'api_key' => env('GEMINI_API_KEY'),
         'model' => env('GEMINI_MODEL', 'gemini-2.5-flash-lite'),

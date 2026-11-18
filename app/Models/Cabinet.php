@@ -18,10 +18,15 @@ class Cabinet extends Model
         'is_active',
         'gst_number',
         'qst_number',
+        'timezone',
+        'booking_enabled',
+        'booking_intro',
+        'mandate_text',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
+        'booking_enabled' => 'boolean',
         'trial_ends_at' => 'datetime',
         'current_period_end' => 'datetime',
         'stripe_charges_enabled' => 'boolean',
