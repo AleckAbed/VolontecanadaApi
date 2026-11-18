@@ -23,6 +23,8 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use App\Support\Tenancy\CabinetRule;
+use App\Support\Tenancy\CurrentCabinet;
 
 class InvitationController extends Controller
 {
@@ -90,9 +92,9 @@ class InvitationController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'client_type' => 'required|in:existing,custom',
-            'client_id' => 'required_if:client_type,existing|nullable|exists:clients,id',
-            'family_member_id' => 'nullable|exists:family_members,id',
-            'dossier_id' => 'nullable|exists:dossiers,id',
+            'client_id' => ['required_if:client_type,existing', 'nullable', CabinetRule::exists('clients')],
+            'family_member_id' => ['nullable', CabinetRule::exists('family_members')],
+            'dossier_id' => ['nullable', CabinetRule::exists('dossiers')],
             'custom_name' => 'required_if:client_type,custom|nullable|string|max:255',
             'email' => 'required|email|max:255',
             'phone' => 'nullable|string|max:32',
@@ -101,12 +103,12 @@ class InvitationController extends Controller
             'expires_days' => 'nullable|integer|min:1|max:365',
             'items' => 'required|array|min:1',
             'items.*.kind' => 'required|in:form,document',
-            'items.*.form_type_id' => 'nullable|exists:form_types,id',
-            'items.*.document_template_id' => 'nullable|exists:document_templates,id',
-            'items.*.dossier_document_id' => 'nullable|exists:dossier_documents,id',
+            'items.*.form_type_id' => ['nullable', CabinetRule::exists('form_types')],
+            'items.*.document_template_id' => ['nullable', CabinetRule::exists('document_templates')],
+            'items.*.dossier_document_id' => ['nullable', CabinetRule::exists('dossier_documents')],
             // Fichiers supplémentaires du dossier à joindre en lecture seule
             'attachments' => 'nullable|array',
-            'attachments.*' => 'integer|exists:dossier_supplementary_files,id',
+            'attachments.*' => ['integer', CabinetRule::exists('dossier_supplementary_files')],
         ]);
         if ($validator->fails()) {
             return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
@@ -519,7 +521,7 @@ class InvitationController extends Controller
             if ($bytes === false) {
                 return response()->json(['success' => false, 'message' => 'PDF invalide'], 422);
             }
-            $path = "invitation-items/{$invitation->unique_code}/item-{$item->id}.pdf";
+            $path = CurrentCabinet::storagePath("invitation-items/{$invitation->unique_code}/item-{$item->id}.pdf");
             Storage::disk('local')->put($path, $bytes);
             $item->pdf_filled_path = $path;
 
@@ -542,7 +544,7 @@ class InvitationController extends Controller
                     && Storage::disk('local')->exists($dossierDoc->filled_pdf_path)) {
                     Storage::disk('local')->delete($dossierDoc->filled_pdf_path);
                 }
-                $sharedPath = "dossier-documents/{$dossierDoc->dossier_id}/filled-{$dossierDoc->id}-" . time() . '.pdf';
+                $sharedPath = CurrentCabinet::storagePath("dossier-documents/{$dossierDoc->dossier_id}/filled-{$dossierDoc->id}-" . time() . '.pdf');
                 Storage::disk('local')->put($sharedPath, $bytes);
                 $dossierDoc->filled_pdf_path = $sharedPath;
                 $dossierDoc->filled_by = 'client';
@@ -623,7 +625,7 @@ class InvitationController extends Controller
         ]);
 
         $file = $request->file('file');
-        $path = $file->store("invitation-uploads/{$invitation->unique_code}", 'local');
+        $path = $file->store(CurrentCabinet::storagePath("invitation-uploads/{$invitation->unique_code}"), 'local');
 
         $upload = InvitationUpload::create([
             'invitation_id' => $invitation->id,

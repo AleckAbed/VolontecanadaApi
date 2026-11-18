@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCabinet;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -10,6 +11,8 @@ use Laravel\Sanctum\HasApiTokens;
 
 class Collaborator extends Authenticatable
 {
+    use BelongsToCabinet;
+
     use HasApiTokens, HasFactory, Notifiable;
 
     protected $fillable = [

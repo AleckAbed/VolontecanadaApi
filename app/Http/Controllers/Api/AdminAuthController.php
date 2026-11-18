@@ -67,7 +67,8 @@ class AdminAuthController extends Controller
                 'password' => 'required',
             ]);
 
-            $admin = Admin::where('email', $request->email)->first();
+            // Recherche sans filtre : c'est l'admin qui détermine le cabinet courant.
+            $admin = Admin::acrossCabinets()->where('email', $request->email)->first();
 
             if (!$admin || !Hash::check($request->password, $admin->password)) {
                 throw ValidationException::withMessages([

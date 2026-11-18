@@ -7,6 +7,7 @@ use App\Models\FormType;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use App\Support\Tenancy\CabinetRule;
 
 class FormTypeController extends Controller
 {
@@ -29,10 +30,10 @@ class FormTypeController extends Controller
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'code' => 'nullable|string|max:255|unique:form_types,code',
+            'code' => ['nullable', 'string', 'max:255', CabinetRule::unique('form_types', 'code')],
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'category_id' => 'nullable|exists:categories,id',
+            'category_id' => ['nullable', CabinetRule::exists('categories')],
             'sort_order' => 'nullable|integer',
             'is_active' => 'nullable|boolean',
         ]);
@@ -59,10 +60,10 @@ class FormTypeController extends Controller
     {
         $formType = FormType::findOrFail($id);
         $validator = Validator::make($request->all(), [
-            'code' => 'sometimes|string|max:255|unique:form_types,code,' . $id,
+            'code' => ['sometimes', 'string', 'max:255', CabinetRule::unique('form_types', 'code', $id)],
             'name' => 'sometimes|string|max:255',
             'description' => 'nullable|string',
-            'category_id' => 'nullable|exists:categories,id',
+            'category_id' => ['nullable', CabinetRule::exists('categories')],
             'sort_order' => 'nullable|integer',
             'is_active' => 'nullable|boolean',
         ]);

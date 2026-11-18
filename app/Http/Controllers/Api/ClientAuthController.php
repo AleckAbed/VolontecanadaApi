@@ -12,56 +12,6 @@ use Illuminate\Validation\ValidationException;
 class ClientAuthController extends Controller
 {
     /**
-     * Inscription client
-     */
-    public function register(Request $request)
-    {
-        try {
-            $request->validate([
-                'first_name' => 'required|string|max:255',
-                'last_name' => 'required|string|max:255',
-                'email' => 'required|email|unique:clients,email',
-                'password' => 'required|min:8|confirmed',
-                'phone' => 'nullable|string',
-            ]);
-
-            $client = Client::create([
-                'first_name' => $request->first_name,
-                'last_name' => $request->last_name,
-                'email' => $request->email,
-                'password' => Hash::make($request->password),
-                'phone' => $request->phone,
-            ]);
-
-            $token = $client->createToken('client-token')->plainTextToken;
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Inscription réussie',
-                'data' => [
-                    'client' => [
-                        'id' => $client->id,
-                        'first_name' => $client->first_name,
-                        'last_name' => $client->last_name,
-                        'email' => $client->email,
-                        'full_name' => $client->full_name,
-                    ],
-                    'token' => $token,
-                ],
-            ], 201);
-        } catch (ValidationException $e) {
-            throw $e;
-        } catch (QueryException $e) {
-            report($e);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'La base de données est injoignable. Démarrez MySQL/MariaDB, puis vérifiez DB_* dans api/.env.',
-            ], 503);
-        }
-    }
-
-    /**
      * Login client
      */
     public function login(Request $request)
@@ -72,9 +22,12 @@ class ClientAuthController extends Controller
                 'password' => 'required',
             ]);
 
-            $client = Client::where('email', $request->email)->first();
+            // Un même courriel peut être client de plusieurs cabinets : on retient
+            // le compte dont le mot de passe correspond.
+            $client = Client::acrossCabinets()->where('email', $request->email)->get()
+                ->first(fn ($c) => $c->password && Hash::check($request->password, $c->password));
 
-            if (!$client || !Hash::check($request->password, $client->password)) {
+            if (!$client) {
                 throw ValidationException::withMessages([
                     'email' => ['Les informations d\'identification sont incorrectes.'],
                 ]);

@@ -8,6 +8,8 @@ use App\Models\DocumentTemplate;
 use App\Models\DossierDocument;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use App\Support\Tenancy\CabinetRule;
+use App\Support\Tenancy\CurrentCabinet;
 
 /**
  * Documents de base attachés à un dossier.
@@ -34,7 +36,7 @@ class DossierDocumentController extends Controller
         $request->validate([
             'name' => 'nullable|string|max:191',
             'description' => 'nullable|string|max:2000',
-            'document_template_id' => 'nullable|exists:document_templates,id',
+            'document_template_id' => ['nullable', CabinetRule::exists('document_templates')],
             'doc_type' => 'nullable|in:ircc,fo',
             'pdf' => 'nullable|file|mimes:pdf|max:20480',
             'sort_order' => 'nullable|integer',
@@ -52,7 +54,7 @@ class DossierDocumentController extends Controller
             $templateModel = DocumentTemplate::findOrFail($templateId);
             // Copie le PDF du template dans le dossier (snapshot)
             $extension = pathinfo($templateModel->pdf_path, PATHINFO_EXTENSION) ?: 'pdf';
-            $newPath = "dossier-documents/{$dossier->id}/" . uniqid('tmpl_') . '.' . $extension;
+            $newPath = CurrentCabinet::storagePath("dossier-documents/{$dossier->id}/" . uniqid('tmpl_') . '.' . $extension);
             if (!Storage::disk('local')->exists($templateModel->pdf_path)) {
                 return response()->json(['success' => false, 'message' => 'Fichier du modèle introuvable'], 404);
             }
@@ -60,7 +62,7 @@ class DossierDocumentController extends Controller
             $path = $newPath;
             if (!$name || !trim($name)) $name = $templateModel->name;
         } else {
-            $path = $request->file('pdf')->store("dossier-documents/{$dossier->id}", 'local');
+            $path = $request->file('pdf')->store(CurrentCabinet::storagePath("dossier-documents/{$dossier->id}"), 'local');
             if (!$name || !trim($name)) {
                 return response()->json(['success' => false, 'message' => 'Nom requis pour un téléversement libre'], 422);
             }
@@ -169,7 +171,7 @@ class DossierDocumentController extends Controller
         if ($doc->filled_pdf_path && Storage::disk('local')->exists($doc->filled_pdf_path)) {
             Storage::disk('local')->delete($doc->filled_pdf_path);
         }
-        $filename = "dossier-documents/{$doc->dossier_id}/filled-{$doc->id}-" . time() . '.pdf';
+        $filename = CurrentCabinet::storagePath("dossier-documents/{$doc->dossier_id}/filled-{$doc->id}-" . time() . '.pdf');
 
         try {
             Storage::disk('local')->put($filename, $pdfContent);

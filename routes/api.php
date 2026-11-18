@@ -41,7 +41,7 @@ Route::prefix('admin')->group(function () {
     Route::middleware('throttle:login')->post('/login', [AdminAuthController::class, 'login']);
 
     // Routes protégées pour les admins
-    Route::middleware('auth:admin')->group(function () {
+    Route::middleware(['auth:admin', 'cabinet'])->group(function () {
         Route::post('/logout', [AdminAuthController::class, 'logout']);
         Route::get('/me', [AdminAuthController::class, 'me']);
         // Vérification du mot de passe sans rotation de token — utilisé par le
@@ -201,48 +201,48 @@ Route::prefix('client')->group(function () {
     Route::middleware('throttle:login')->post('/login', [ClientAuthController::class, 'login']);
 
     // Routes protégées pour les clients
-    Route::middleware('auth:client')->group(function () {
+    Route::middleware(['auth:client', 'cabinet'])->group(function () {
         Route::post('/logout', [ClientAuthController::class, 'logout']);
         Route::get('/me', [ClientAuthController::class, 'me']);
     });
 });
 
 // Routes publiques pour les questionnaires (mêmes limites que les invitations)
-Route::middleware('throttle:public-verify')->post('/questionnaires/verify', [QuestionnaireController::class, 'verifyAccess']);
-Route::middleware('throttle:public-write')->group(function () {
+Route::middleware(['throttle:public-verify', 'cabinet.code:questionnaire'])->post('/questionnaires/verify', [QuestionnaireController::class, 'verifyAccess']);
+Route::middleware(['throttle:public-write', 'cabinet.code:questionnaire'])->group(function () {
     Route::post('/questionnaires/{code}/save', [QuestionnaireController::class, 'saveFormData']);
     Route::post('/questionnaires/{code}/submit', [QuestionnaireController::class, 'submitForm']);
 });
 
 // Routes publiques pour le remplissage de documents (client via token)
-Route::middleware('throttle:public-read')->group(function () {
+Route::middleware(['throttle:public-read', 'cabinet.code:document'])->group(function () {
     Route::get('/documents/{token}', [DocumentController::class, 'getDocumentByToken']);
     Route::get('/documents/{token}/pdf', [DocumentController::class, 'serveBasePdfByToken']);
 });
-Route::middleware('throttle:public-write')->group(function () {
+Route::middleware(['throttle:public-write', 'cabinet.code:document'])->group(function () {
     Route::post('/documents/{token}/save', [DocumentController::class, 'saveProgress']);
     Route::post('/documents/{token}/submit', [DocumentController::class, 'submitDocument']);
 });
 
-// Routes publiques news (consultables par l'admin connecté ou non)
-Route::get('/news/articles', [NewsArticleController::class, 'publicIndex']);
-Route::get('/news/articles/{slug}', [NewsArticleController::class, 'publicShow']);
-Route::get('/news/sources', [NewsSourceController::class, 'publicIndex']);
+// Routes news lues par le tableau de bord : le cabinet vient du jeton s'il est présent (sinon liste vide).
+Route::middleware('cabinet:optional')->get('/news/articles', [NewsArticleController::class, 'publicIndex']);
+Route::middleware('cabinet:optional')->get('/news/articles/{slug}', [NewsArticleController::class, 'publicShow']);
+Route::middleware('cabinet:optional')->get('/news/sources', [NewsSourceController::class, 'publicIndex']);
 
 // Routes publiques pour les invitations groupées (client via code unique).
 // Rate limiting :
 //  - verify (email+code) : 10/min par IP — protège contre bruteforce d'identifiants
 //  - lecture (show, pdf)  : 30/min par IP — permissif pour usage normal
 //  - écriture (save, complete, submit) : 60/min par IP — autorise auto-save fréquent
-Route::middleware('throttle:public-verify')->group(function () {
+Route::middleware(['throttle:public-verify', 'cabinet.code:invitation'])->group(function () {
     Route::post('/invitations/verify', [InvitationController::class, 'publicVerifyAccess']);
 });
-Route::middleware('throttle:public-read')->group(function () {
+Route::middleware(['throttle:public-read', 'cabinet.code:invitation'])->group(function () {
     Route::get('/invitations/{code}', [InvitationController::class, 'publicShow']);
     Route::get('/invitations/{code}/items/{itemId}/pdf', [InvitationController::class, 'publicGetItemPdf']);
     Route::get('/invitations/{code}/attachments/{attachmentId}', [InvitationController::class, 'publicGetAttachment']);
 });
-Route::middleware('throttle:public-write')->group(function () {
+Route::middleware(['throttle:public-write', 'cabinet.code:invitation'])->group(function () {
     Route::post('/invitations/{code}/items/{itemId}/save-form', [InvitationController::class, 'publicSaveFormItem']);
     Route::post('/invitations/{code}/items/{itemId}/save-document', [InvitationController::class, 'publicSaveDocumentItem']);
     Route::post('/invitations/{code}/items/{itemId}/complete', [InvitationController::class, 'publicCompleteItem']);
@@ -257,12 +257,12 @@ Route::prefix('collaborator')->group(function () {
     Route::middleware('throttle:login')->post('/login', [CollaboratorAuthController::class, 'login']);
 
     // Activation du compte via le lien envoyé par l'admin (public, throttle)
-    Route::middleware('throttle:public-verify')->group(function () {
+    Route::middleware(['throttle:public-verify', 'cabinet.code:activation'])->group(function () {
         Route::post('/check-activation', [CollaboratorController::class, 'checkActivationToken']);
         Route::post('/activate', [CollaboratorController::class, 'activate']);
     });
 
-    Route::middleware('auth:collaborator')->group(function () {
+    Route::middleware(['auth:collaborator', 'cabinet'])->group(function () {
         Route::post('/logout', [CollaboratorAuthController::class, 'logout']);
         Route::get('/me', [CollaboratorAuthController::class, 'me']);
 

@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use App\Support\Tenancy\CabinetRule;
 
 class CollaboratorController extends Controller
 {
@@ -28,7 +29,7 @@ class CollaboratorController extends Controller
         $data = $request->validate([
             'first_name' => 'required|string|max:100',
             'last_name' => 'required|string|max:100',
-            'email' => 'required|email|unique:collaborators,email',
+            'email' => ['required', 'email', CabinetRule::unique('collaborators', 'email')],
             'password' => 'required|string|min:6',
             'phone' => 'nullable|string|max:50',
             'is_active' => 'nullable|boolean',
@@ -51,7 +52,7 @@ class CollaboratorController extends Controller
         $data = $request->validate([
             'first_name' => 'sometimes|required|string|max:100',
             'last_name' => 'sometimes|required|string|max:100',
-            'email' => 'sometimes|required|email|unique:collaborators,email,' . $collab->id,
+            'email' => ['sometimes', 'required', 'email', CabinetRule::unique('collaborators', 'email', $collab->id)],
             'phone' => 'nullable|string|max:50',
             'is_active' => 'nullable|boolean',
             'password' => 'nullable|string|min:6',

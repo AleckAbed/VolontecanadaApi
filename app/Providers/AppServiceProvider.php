@@ -2,10 +2,12 @@
 
 namespace App\Providers;
 
+use App\Models\PersonalAccessToken;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use Laravel\Sanctum\Sanctum;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -23,6 +25,10 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureRateLimiting();
+
+        // Le propriétaire d'un jeton est chargé sans filtrage par cabinet :
+        // c'est lui qui détermine le cabinet courant (voir PersonalAccessToken).
+        Sanctum::usePersonalAccessTokenModel(PersonalAccessToken::class);
     }
 
     /**
