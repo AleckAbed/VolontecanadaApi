@@ -636,6 +636,8 @@ class InvitationController extends Controller
             'path' => $path,
         ]);
 
+        app(\App\Services\NotificationService::class)->clientUploaded($invitation, $upload->original_filename);
+
         return response()->json([
             'success' => true,
             'data' => [
@@ -676,6 +678,8 @@ class InvitationController extends Controller
             'id' => $inv->id,
             'unique_code' => $inv->unique_code,
             'client_type' => $inv->client_type,
+            // Envoi complété par le client puis vérifié par le cabinet (tableau « action requise »).
+            'reviewed_at' => $inv->reviewed_at ? \Illuminate\Support\Carbon::parse($inv->reviewed_at)->format('Y-m-d H:i') : null,
             'client' => $inv->client ? [
                 'id' => $inv->client->id,
                 'name' => trim(($inv->client->first_name ?? '') . ' ' . ($inv->client->last_name ?? '')),

@@ -109,7 +109,13 @@ class Invitation extends Model
         } else {
             $this->status = 'pending';
         }
+        $becameCompleted = $this->isDirty('status') && $this->status === 'completed';
         $this->save();
+
+        // Le client vient de tout terminer : le cabinet est prévenu (et l'envoi apparaît « à réviser »).
+        if ($becameCompleted) {
+            app(\App\Services\NotificationService::class)->invitationCompleted($this);
+        }
     }
 
     public static function generateUniqueCode(): string

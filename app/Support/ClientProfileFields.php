@@ -52,7 +52,8 @@ final class ClientProfileFields
         'nationalIdIssueCountry' => ['@id_national_pays', 'Pays de la pièce d\'identité nationale', 'Pièces d\'identité', 'text'],
 
         // Immigration et parcours
-        'lastEntryDate' => ['@derniere_entree', 'Date de la dernière entrée au Canada', 'Immigration et parcours', 'date'],
+        'permitExpiryDate' => ['@permis_expiration', 'Date d\'expiration du permis ou du statut actuel', 'Immigration et parcours', 'date'],
+        'lastEntryDate' =>['@derniere_entree', 'Date de la dernière entrée au Canada', 'Immigration et parcours', 'date'],
         'lastEntryPlace' => ['@lieu_derniere_entree', 'Lieu de la dernière entrée au Canada', 'Immigration et parcours', 'text'],
         'preferredLanguageCorrespondence' => ['@langue', 'Langue de correspondance', 'Immigration et parcours', 'text'],
         'highestEducationLevel' => ['@scolarite', 'Plus haut niveau de scolarité', 'Immigration et parcours', 'text'],
