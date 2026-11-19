@@ -161,15 +161,50 @@ class ClientProfileService
         }
 
         $out = [];
-        foreach ($map as $fieldKey => $profileKey) {
-            if (! isset($profile[$profileKey])) {
+        foreach ($map as $fieldKey => $entry) {
+            $profileKey = self::profileKeyOf($entry);
+            if (! $profileKey || ! isset($profile[$profileKey])) {
                 continue;
             }
             $value = $profile[$profileKey];
-            $out[$fieldKey] = str_starts_with((string) $fieldKey, '__as__') ? ['value' => $value] : $value;
+            $isStorage = str_starts_with((string) $fieldKey, '__as__');
+            if (is_array($entry) && ! empty($entry['format'])) {
+                $value = ClientProfileFields::formatDate($value, $entry['format']);
+            }
+
+            if (is_array($entry) && isset($entry['equals'])) {
+                // Case à cocher, bouton radio ou option précise : valeur relevée au moment de la relier.
+                if (ClientProfileFields::matches($profileKey, $value, (array) $entry['equals'])) {
+                    $out[$fieldKey] = $entry['set'] ?? true;
+                }
+                continue;
+            }
+            if (is_array($entry) && ! empty($entry['choice'])) {
+                // Liste déroulante : le visualiseur choisit l'option qui correspond à l'un de ces libellés.
+                $choices = ClientProfileFields::aliases($profileKey, $value);
+                $out[$fieldKey] = $isStorage ? ['value' => $value, 'choices' => $choices] : ['choices' => $choices];
+                continue;
+            }
+            $out[$fieldKey] = $isStorage ? ['value' => $value] : $value;
         }
 
         return $out;
+    }
+
+    /** Clé du profil d'une entrée de correspondance (texte simple, ou entrée détaillée). */
+    public static function profileKeyOf(mixed $entry): ?string
+    {
+        if (is_string($entry)) {
+            return $entry;
+        }
+
+        return is_array($entry) && is_string($entry['key'] ?? null) ? $entry['key'] : null;
+    }
+
+    /** Entrée reliée en cliquant (case, radio, liste, champ texte), et non par un jeton tapé dans le champ. */
+    public static function isRule(mixed $entry): bool
+    {
+        return is_array($entry) && (isset($entry['equals']) || ! empty($entry['choice']) || ! empty($entry['click']));
     }
 
     /**
@@ -193,11 +228,15 @@ class ClientProfileService
             if (! str_starts_with($value, '@')) {
                 continue;
             }
-            if (isset($tokens[$value])) {
-                $map[(string) $fieldKey] = $tokens[$value];
-            } else {
+            // Format de date facultatif : @date_naissance:jj/mm/aaaa, ou une partie (:aaaa, :mm, :jj).
+            [$token, $format] = array_pad(explode(':', $value, 2), 2, null);
+            if (! isset($tokens[$token]) || ($format !== null && ! preg_match(ClientProfileFields::DATE_FORMAT, $format))) {
                 $unknown[] = $value;
+                continue;
             }
+            $map[(string) $fieldKey] = $format !== null && $format !== ''
+                ? ['key' => $tokens[$token], 'format' => $format]
+                : $tokens[$token];
         }
 
         return ['map' => $map, 'unknown' => array_values(array_unique($unknown))];
@@ -207,11 +246,14 @@ class ClientProfileService
     public function tokensForMap(array $map): array
     {
         $out = [];
-        foreach ($map as $fieldKey => $profileKey) {
-            $token = ClientProfileFields::tokenFor($profileKey);
-            if ($token) {
-                $out[$fieldKey] = str_starts_with((string) $fieldKey, '__as__') ? ['value' => $token] : $token;
+        foreach ($map as $fieldKey => $entry) {
+            if (self::isRule($entry) || ! ($token = ClientProfileFields::tokenFor((string) self::profileKeyOf($entry)))) {
+                continue;
             }
+            if (is_array($entry) && ! empty($entry['format'])) {
+                $token .= ':' . $entry['format'];
+            }
+            $out[$fieldKey] = str_starts_with((string) $fieldKey, '__as__') ? ['value' => $token] : $token;
         }
 
         return $out;
