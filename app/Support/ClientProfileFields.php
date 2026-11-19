@@ -60,6 +60,50 @@ final class ClientProfileFields
         'currentEmployment' => ['@emploi_actuel', 'Emploi actuel', 'Immigration et parcours', 'text'],
     ];
 
+    /**
+     * Valeurs codées du questionnaire général, avec leurs libellés (fr, en) :
+     * servent à cocher la bonne case et à choisir la bonne option d'une liste.
+     */
+    public const CHOICES = [
+        'sex' => [
+            'male' => ['Masculin', 'Male', 'M'],
+            'female' => ['Féminin', 'Female', 'F'],
+            'other' => ['Autre', 'Un autre genre', 'Another gender', 'Unspecified', 'X'],
+        ],
+        'currentMaritalStatus' => [
+            'single' => ['Célibataire', 'Single', 'Never married'],
+            'married' => ['Marié(e)', 'Married'],
+            'common-law' => ['Union de fait', 'Conjoint(e) de fait', 'Common-law'],
+            'divorced' => ['Divorcé(e)', 'Divorced'],
+            'separated' => ['Séparé(e)', 'Séparé légalement', 'Separated', 'Legally separated'],
+            'widowed' => ['Veuf(ve)', 'Widowed'],
+        ],
+        'eyeColor' => [
+            'blue' => ['Bleu', 'Blue'],
+            'green' => ['Vert', 'Green'],
+            'brown' => ['Marron', 'Brown'],
+            'black' => ['Noir', 'Black'],
+            'gray' => ['Gris', 'Grey', 'Gray'],
+            'hazel' => ['Noisette', 'Hazel'],
+        ],
+        'preferredLanguageCorrespondence' => [
+            'Français' => ['French'],
+            'Anglais' => ['English'],
+        ],
+    ];
+
+    /** Provinces et territoires : nom (fr, en) => code des listes IRCC. */
+    public const PROVINCES = [
+        'AB' => ['Alberta'], 'BC' => ['Colombie-Britannique', 'British Columbia'], 'MB' => ['Manitoba'],
+        'NB' => ['Nouveau-Brunswick', 'New Brunswick'], 'NL' => ['Terre-Neuve-et-Labrador', 'Newfoundland and Labrador'],
+        'NS' => ['Nouvelle-Écosse', 'Nova Scotia'], 'NT' => ['Territoires du Nord-Ouest', 'Northwest Territories'],
+        'NU' => ['Nunavut'], 'ON' => ['Ontario'], 'PE' => ['Île-du-Prince-Édouard', 'Prince Edward Island'],
+        'QC' => ['Québec', 'Quebec'], 'SK' => ['Saskatchewan'], 'YT' => ['Yukon'],
+    ];
+
+    /** Format de date accepté après un jeton (@date_naissance:jj/mm/aaaa, :aaaa, :mm, :jj). */
+    public const DATE_FORMAT = '/^(?=.*(aaaa|aa|mm|jj|yyyy|yy|dd))[ajmyd\/\-\. ]{1,12}$/';
+
     public static function keys(): array
     {
         return array_keys(self::FIELDS);
@@ -90,7 +134,60 @@ final class ClientProfileFields
             'label' => $f[1],
             'section' => $f[2],
             'type' => $f[3],
+            'choices' => isset(self::CHOICES[$key])
+                ? collect(self::CHOICES[$key])->map(fn ($labels, $value) => ['value' => (string) $value, 'label' => $labels[0]])->values()->all()
+                : null,
         ])->values()->all();
+    }
+
+    /** La valeur et ses libellés connus : de quoi la reconnaître dans une liste du PDF. */
+    public static function aliases(string $key, string $value): array
+    {
+        $labels = self::CHOICES[$key][$value] ?? [];
+        if ($key === 'province') {
+            foreach (self::PROVINCES as $code => $names) {
+                $all = array_merge([$code], $names);
+                if (in_array(self::normalize($value), array_map([self::class, 'normalize'], $all), true)) {
+                    $labels = $all;
+                }
+            }
+        }
+
+        return array_values(array_unique(array_merge([$value], $labels)));
+    }
+
+    /** Comparaison souple : casse, accents et ponctuation ignorés. */
+    public static function normalize(string $value): string
+    {
+        $ascii = strtolower(\Illuminate\Support\Str::ascii($value));
+
+        return trim(preg_replace('/[^a-z0-9]+/', ' ', $ascii));
+    }
+
+    /** Vrai si la valeur du profil correspond à l'une des valeurs attendues (code ou libellé). */
+    public static function matches(string $key, string $profileValue, array $expected): bool
+    {
+        $have = array_map([self::class, 'normalize'], self::aliases($key, $profileValue));
+        foreach ($expected as $want) {
+            if (in_array(self::normalize((string) $want), $have, true)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** Date du profil au format demandé (jj/mm/aaaa, aaaa, mm, jj…), ou telle quelle si illisible. */
+    public static function formatDate(string $value, string $format): string
+    {
+        try {
+            $date = \Illuminate\Support\Carbon::parse($value);
+        } catch (\Throwable) {
+            return $value;
+        }
+        $php = strtr(strtolower($format), ['aaaa' => 'Y', 'yyyy' => 'Y', 'aa' => 'y', 'yy' => 'y', 'mm' => 'm', 'jj' => 'd', 'dd' => 'd']);
+
+        return $date->format($php);
     }
 
     /** Ne garde que les clés du profil, en valeurs texte non vides. */

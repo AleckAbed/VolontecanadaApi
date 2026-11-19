@@ -277,6 +277,8 @@ Route::prefix('admin')->group(function () {
         // Correspondance des champs PDF avec le profil client (préremplissage)
         Route::get('/document-templates/{id}/field-map', [FieldMapController::class, 'show']);
         Route::put('/document-templates/{id}/field-map', [FieldMapController::class, 'update'])->middleware('role:owner,admin');
+        Route::post('/document-templates/{id}/field-map/rules', [FieldMapController::class, 'addRules'])->middleware('role:owner,admin');
+        Route::delete('/document-templates/{id}/field-map/rules/{group}', [FieldMapController::class, 'removeRule'])->middleware('role:owner,admin');
 
         // Demandes de documents envoyées aux clients
         Route::get('/document-requests', [DocumentController::class, 'indexRequests']);
