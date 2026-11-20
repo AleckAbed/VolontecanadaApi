@@ -25,3 +25,7 @@ Thumbs.db
 
 # Route cache (use live routes from api.php; run "php artisan route:clear" on server if needed)
 /bootstrap/cache/routes-v7.php
+
+# Tests de bout en bout (Playwright)
+.env.e2e
+/database/e2e.sqlite
