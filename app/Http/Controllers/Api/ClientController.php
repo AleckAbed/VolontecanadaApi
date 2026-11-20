@@ -63,7 +63,7 @@ class ClientController extends Controller
             'first_name' => 'required|string|max:255',
             'last_name' => 'required|string|max:255',
             'email' => ['required', 'email', CabinetRule::unique('clients', 'email')],
-            'password' => 'nullable|string|min:8', // facultatif : le client peut recevoir un lien d'accès au portail
+            'preferred_locale' => 'nullable|in:fr,en,es',
             'phone' => 'nullable|string|max:50',
             'date_of_birth' => 'nullable|date',
             'nationality' => 'nullable|string|max:100',
@@ -96,7 +96,9 @@ class ClientController extends Controller
             'client_type', 'first_name', 'last_name', 'email', 'phone',
             'date_of_birth', 'nationality', 'country_of_residence', 'passport_number', 'address',
         ]);
-        $data["password"] = $request->filled("password") ? Hash::make($request->password) : null;
+        // Jamais de mot de passe saisi par le cabinet : le client le choisit via l'invitation au portail.
+        $data['password'] = null;
+        $data['preferred_locale'] = $request->input('preferred_locale') ?: 'fr';
         $data['client_type'] = $request->client_type;
         if ($request->has('in_canada')) {
             $data['in_canada'] = $request->boolean('in_canada');
@@ -155,7 +157,7 @@ class ClientController extends Controller
             'first_name' => 'sometimes|string|max:255',
             'last_name' => 'sometimes|string|max:255',
             'email' => ['sometimes', 'email', CabinetRule::unique('clients', 'email', $id)],
-            'password' => 'nullable|string|min:8',
+            'preferred_locale' => 'sometimes|in:fr,en,es',
             'phone' => 'nullable|string|max:50',
             'date_of_birth' => 'nullable|date',
             'nationality' => 'nullable|string|max:100',
@@ -176,11 +178,8 @@ class ClientController extends Controller
 
         $data = $request->only([
             'client_type', 'first_name', 'last_name', 'email', 'phone',
-            'date_of_birth', 'nationality', 'country_of_residence', 'passport_number', 'address', 'is_active',
+            'date_of_birth', 'nationality', 'country_of_residence', 'passport_number', 'address', 'is_active', 'preferred_locale',
         ]);
-        if ($request->filled('password')) {
-            $data['password'] = Hash::make($request->password);
-        }
         if ($request->has('in_canada')) {
             $data['in_canada'] = $request->boolean('in_canada');
         }

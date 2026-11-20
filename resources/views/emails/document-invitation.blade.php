@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="{{ app()->getLocale() }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -23,43 +23,40 @@
         <div class="header">
             @include('emails.partials.logo')
             <h1>{{ $brand['name'] }}</h1>
-            <p>Cabinet d'immigration</p>
+            <p>{{ __('emails.immigration_firm') }}</p>
         </div>
         <div class="body">
-            <p>Bonjour <strong>{{ $clientName }}</strong>,</p>
-            <p>Le cabinet {{ $brand['name'] }} vous invite à remplir le document suivant dans le cadre de votre dossier d'immigration :</p>
-            <p><strong>📄 {{ $documentName }}</strong></p>
+            <p>{!! __('emails.hello', ['name' => '<strong>' . e($clientName) . '</strong>']) !!}</p>
+            <p>{{ __('emails.document.intro', ['cabinet' => $brand['name']]) }}</p>
+            <p><strong>{{ $documentName }}</strong></p>
 
             @if($personalMessage)
             <div class="message-box">
-                <strong>Message de votre conseiller :</strong><br>
+                <strong>{{ __('emails.document.advisor_message') }}</strong><br>
                 {{ $personalMessage }}
             </div>
             @endif
 
-            <p>Cliquez sur le bouton ci-dessous pour accéder au document et le remplir directement en ligne :</p>
+            <p>{{ __('emails.document.cta') }}</p>
 
             <div style="text-align: center;">
-                <a href="{{ $fillUrl }}" class="btn">Remplir le document</a>
+                <a href="{{ $fillUrl }}" class="btn">{{ __('emails.document.button') }}</a>
             </div>
 
             <div class="info">
-                ⚠️ <strong>Important :</strong> Ce lien est personnel et confidentiel.
-                @if($expiresAt)
-                    Il expire le <strong>{{ $expiresAt }}</strong>.
-                @endif
-                Ne le partagez avec personne.
+                <strong>{{ __('emails.important') }}</strong> {{ __('emails.document.personal') }}
+                @if($expiresAt) {{ __('emails.document.expires', ['date' => $expiresAt]) }} @endif
             </div>
 
-            <p>Si le bouton ne fonctionne pas, copiez ce lien dans votre navigateur :</p>
-            <p style="word-break: break-all; font-size: 13px; color: #555;">{{ $fillUrl }}</p>
+            <p>{{ __('emails.copy_link') }}</p>
+            <p style="word-break: break-all; font-size: 13px;"><a href="{{ $fillUrl }}" style="color:#555">{{ $fillUrl }}</a></p>
 
-            <p>Pour toute question, contactez votre conseiller en immigration.</p>
-            <p>Cordialement,<br><strong>L'équipe {{ $brand['name'] }}</strong></p>
+            <p>{{ __('emails.questions_advisor') }}</p>
+            <p>{{ __('emails.document.regards') }}<br><strong>{{ __('emails.document.team', ['cabinet' => $brand['name']]) }}</strong></p>
         </div>
         <div class="footer">
             <p>© {{ date('Y') }} {{ $brand['name'] }}</p>
-            <p>Cet email a été envoyé automatiquement, merci de ne pas y répondre directement.</p>
+            <p>{{ __('emails.auto_no_reply') }}</p>
         </div>
     </div>
 </body>

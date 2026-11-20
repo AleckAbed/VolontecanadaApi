@@ -31,6 +31,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => \App\Http\Middleware\EnsureAdminRole::class,
             'audit' => \App\Http\Middleware\AuditAccess::class,
             'two-factor' => \App\Http\Middleware\EnsureTwoFactor::class,
+            'modules' => \App\Http\Middleware\EnsureModuleAccess::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
@@ -40,7 +41,8 @@ return Application::configure(basePath: dirname(__DIR__))
         // Pour les routes API : si non authentifié, renvoyer 401 JSON au lieu de rediriger vers [login].
         $exceptions->renderable(function (\Illuminate\Auth\AuthenticationException $e, $request) {
             if ($request->expectsJson() || $request->is('api/*')) {
-                return response()->json(['message' => 'Unauthenticated.'], 401);
+                // Message dans la langue de la personne (Accept-Language, voir SetLocale).
+                return response()->json(['message' => __('messages.auth.unauthenticated'), 'code' => 'unauthenticated'], 401);
             }
         });
     })->create();

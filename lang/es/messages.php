@@ -16,6 +16,7 @@ return [
         'server' => 'Error del servidor',
     ],
     'auth' => [
+        'unauthenticated' => 'Su sesión ha caducado. Vuelva a iniciar sesión.',
         'login_success' => 'Inicio de sesión exitoso',
         'logout_success' => 'Cierre de sesión exitoso',
         'wrong_credentials' => 'Credenciales incorrectas',

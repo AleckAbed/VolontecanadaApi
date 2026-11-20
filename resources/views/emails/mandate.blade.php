@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="{{ app()->getLocale() }}">
 <head>
     <meta charset="UTF-8">
     <title>{{ $mandate->title }} — {{ $cabinetName }}</title>
@@ -21,26 +21,23 @@
     </div>
 
     <div class="content">
-        <p>Bonjour <strong>{{ $clientName }}</strong>,</p>
+        <p>{!! __('emails.hello', ['name' => '<strong>' . e($clientName) . '</strong>']) !!}</p>
 
         @if ($signedCopy)
-            <div class="signed">
-                Merci ! Vous avez signé ce mandat le {{ $mandate->signed_at?->format('Y-m-d H:i') }} (UTC) sous le nom « {{ $mandate->signed_name }} ».
-                Conservez ce courriel : il contient le texte que vous avez accepté.
-            </div>
+            <div class="signed">{{ __('emails.mandate.signed', ['date' => $mandate->signed_at?->format('Y-m-d H:i'), 'name' => $mandate->signed_name]) }}</div>
             <div class="body">{{ $mandate->body }}</div>
-            <p style="font-size:12px;color:#64748b;word-break:break-all">Empreinte du texte signé (SHA-256) : {{ $mandate->body_hash }}</p>
+            <p style="font-size:12px;color:#64748b;word-break:break-all">{{ __('emails.mandate.hash') }} {{ $mandate->body_hash }}</p>
         @else
-            <p><strong>{{ $cabinetName }}</strong> vous transmet un mandat de représentation à lire et à signer en ligne. Cela prend une minute.</p>
+            <p>{{ __('emails.mandate.intro', ['cabinet' => $cabinetName]) }}</p>
             <p style="text-align:center;margin:24px 0 8px">
-                <a href="{{ $url }}" class="button">Lire et signer le mandat</a>
+                <a href="{{ $url }}" class="button">{{ __('emails.mandate.button') }}</a>
             </p>
         @endif
     </div>
 
     <div class="footer">
         {{ $cabinetName }}<br>
-        Pour toute question sur ce mandat, contactez votre conseiller.
+        {{ __('emails.mandate.footer') }}
     </div>
 </body>
 </html>

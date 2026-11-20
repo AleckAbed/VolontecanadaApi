@@ -160,6 +160,8 @@ class AdminAuthController extends Controller
             'role' => $admin->role,
             'role_label' => Roles::label($admin->role),
             'permissions' => Roles::permissions($admin->role),
+            // Menus ouverts pour cette personne (réglés par le propriétaire).
+            'modules' => \App\Support\Modules::effective($admin, $cabinet),
             'cabinet' => $cabinet ? ['id' => $cabinet->id, 'name' => $cabinet->name, 'slug' => $cabinet->slug, 'branding' => $cabinet->branding()] : null,
             'two_factor' => [
                 'enabled' => $admin->hasTwoFactor(),

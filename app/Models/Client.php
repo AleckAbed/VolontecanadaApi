@@ -26,6 +26,7 @@ class Client extends Authenticatable
         'first_name',
         'last_name',
         'email',
+        'preferred_locale',
         'password',
         'phone',
         'date_of_birth',
@@ -43,6 +44,8 @@ class Client extends Authenticatable
      *
      * @var array<int, string>
      */
+    protected $appends = ['portal_status'];
+
     protected $hidden = [
         'password',
         'remember_token',
@@ -71,6 +74,25 @@ class Client extends Authenticatable
     /**
      * Get the full name of the client.
      */
+    /** Langue des courriels du client (fr, en, es). */
+    public function preferredLocale(): string
+    {
+        return in_array($this->preferred_locale, ['fr', 'en', 'es'], true) ? $this->preferred_locale : 'fr';
+    }
+
+    /**
+     * État du portail : « active » (le client a choisi son mot de passe), « invited »
+     * (invitation envoyée, pas encore activée), « none ».
+     */
+    public function getPortalStatusAttribute(): string
+    {
+        if ($this->password) {
+            return 'active';
+        }
+
+        return $this->access_token_hash && $this->access_token_expires_at?->isFuture() ? 'invited' : 'none';
+    }
+
     public function getFullNameAttribute(): string
     {
         return "{$this->first_name} {$this->last_name}";

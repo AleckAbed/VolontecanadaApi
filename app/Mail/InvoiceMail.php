@@ -14,13 +14,9 @@ class InvoiceMail extends QueuedMail
 
     public function envelope(): Envelope
     {
-        $cabinet = $this->cabinet?->name ?? 'Votre cabinet';
+        $vars = ['number' => $this->invoice->number, 'cabinet' => $this->cabinet?->name ?? __('emails.immigration_firm')];
 
-        return new Envelope(
-            subject: $this->isReceipt
-                ? "Reçu — facture {$this->invoice->number} — {$cabinet}"
-                : "Facture {$this->invoice->number} — {$cabinet}",
-        );
+        return new Envelope(subject: __($this->isReceipt ? 'emails.invoice.receipt_subject' : 'emails.invoice.subject', $vars));
     }
 
     public function content(): Content

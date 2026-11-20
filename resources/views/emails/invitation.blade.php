@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="{{ app()->getLocale() }}">
 <head>
     <meta charset="UTF-8">
     <title>Invitation {{ $brand['name'] }}</title>
@@ -25,12 +25,12 @@
     <div class="header">
         @include('emails.partials.logo')
         <h1 style="margin:0">{{ $brand['name'] }}</h1>
-        <p style="margin:6px 0 0;opacity:.9">Cabinet d'immigration</p>
+        <p style="margin:6px 0 0;opacity:.9">{{ __('emails.immigration_firm') }}</p>
     </div>
 
     <div class="content">
-        <p>Bonjour <strong>{{ $clientName }}</strong>,</p>
-        <p>Votre conseiller vous invite à compléter les éléments suivants :</p>
+        <p>{!! __('emails.hello', ['name' => '<strong>' . e($clientName) . '</strong>']) !!}</p>
+        <p>{{ __('emails.envoi.intro') }}</p>
 
         @if($customMessage)
             <div class="msg">{{ $customMessage }}</div>
@@ -40,48 +40,44 @@
             @foreach($items as $item)
                 <li>
                     @if($item->item_kind === 'form')
-                        <span class="badge badge-form">Formulaire</span>
+                        <span class="badge badge-form">{{ __('emails.envoi.form') }}</span>
                         <strong>{{ $item->formType?->name ?? '—' }}</strong>
                     @else
-                        <span class="badge badge-doc">Document</span>
+                        <span class="badge badge-doc">{{ __('emails.envoi.document') }}</span>
                         <strong>{{ $item->documentTemplate?->name ?? '—' }}</strong>
                     @endif
                 </li>
             @endforeach
         </ul>
 
-        <p>Vous pouvez les remplir à votre rythme — vos réponses sont sauvegardées automatiquement.</p>
+        <p>{{ __('emails.envoi.pace') }}</p>
 
         <div class="info">
-            <strong>Comment accéder à votre invitation :</strong>
+            <strong>{{ __('emails.envoi.howto_title') }}</strong>
             <ol style="margin:8px 0 0;padding-left:20px">
-                <li>Cliquez sur le bouton ci-dessous</li>
-                <li>Entrez votre <strong>adresse courriel</strong> ({{ $invitation->email }})</li>
-                <li>Saisissez le <strong>code d'accès</strong> indiqué plus bas</li>
+                <li>{{ __('emails.envoi.step1') }}</li>
+                <li>{{ __('emails.envoi.step2', ['email' => $invitation->email]) }}</li>
+                <li>{{ __('emails.envoi.step3') }}</li>
             </ol>
         </div>
 
         <div style="text-align: center;">
-            <a href="{{ $invitationUrl }}" class="button">Accéder à mon invitation</a>
+            <a href="{{ $invitationUrl }}" class="button">{{ __('emails.envoi.button') }}</a>
         </div>
 
-        <p style="margin-top:24px"><span class="code-label">Votre code d'accès unique</span></p>
+        <p style="margin-top:24px"><span class="code-label">{{ __('emails.envoi.code_label') }}</span></p>
         <div class="code-box">
             {{ $invitation->unique_code }}
         </div>
-        <p style="font-size:13px;color:#6b7280;text-align:center;margin-top:8px">
-            Copiez ce code et collez-le dans le champ "Code d'accès" de la page.
-            <br>Pour votre sécurité, ce code n'est pas pré-rempli dans le lien.
-        </p>
+        <p style="font-size:13px;color:#6b7280;text-align:center;margin-top:8px">{{ __('emails.envoi.code_help') }}</p>
 
         <div class="warning">
-            ⏱ Cette invitation expire le <strong>{{ $expiresAt }}</strong>. Assurez-vous de tout soumettre avant cette date.
+            {{ __('emails.envoi.expires', ['date' => $expiresAt]) }}
         </div>
     </div>
 
     <div class="footer">
-        <p>Email automatique — merci de ne pas répondre.<br>
-        Si vous n'attendiez pas cette invitation, veuillez l'ignorer.</p>
+        <p>{{ __('emails.auto_no_reply') }}<br>{{ __('emails.envoi.not_expected') }}</p>
     </div>
 </body>
 </html>

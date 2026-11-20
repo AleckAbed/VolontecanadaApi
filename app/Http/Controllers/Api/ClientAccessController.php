@@ -28,15 +28,33 @@ class ClientAccessController extends Controller
             return response()->json(['success' => false, 'message' => 'Ce client n\'a pas de courriel.'], 422);
         }
 
-        $purpose = $client->password ? AdminAccessTokens::RESET : AdminAccessTokens::INVITE;
-        $sent = $this->send($client, $purpose);
+        // Client déjà inscrit : on ne lui envoie pas de lien de mot de passe, seulement l'avis
+        // que du nouveau l'attend dans son espace. Sinon : invitation à créer son espace.
+        $active = (bool) $client->password;
+        $sent = $active ? $this->sendReminder($client) : $this->send($client, AdminAccessTokens::INVITE);
 
         return response()->json([
             'success' => $sent,
-            'message' => $sent
-                ? "Lien d'accès au portail envoyé à {$client->email}."
-                : 'Le courriel n\'a pas pu être envoyé. Vérifiez la configuration d\'envoi.',
+            'message' => ! $sent
+                ? 'Le courriel n\'a pas pu être envoyé. Vérifiez la configuration d\'envoi.'
+                : ($active
+                    ? "{$client->email} a déjà son espace client : il a été prévenu par courriel qu'il a du nouveau."
+                    : "Invitation à créer son espace client envoyée à {$client->email}."),
+            'data' => ['portal_status' => $client->fresh()->portal_status],
         ], $sent ? 200 : 500);
+    }
+
+    private function sendReminder(Client $client): bool
+    {
+        try {
+            Mail::to($client->email)->send(new ClientPortalAccessMail($client, Cabinet::find($client->cabinet_id), '', ClientPortalAccessMail::REMINDER));
+
+            return true;
+        } catch (\Throwable $e) {
+            Log::error('Erreur envoi rappel portail client', ['client_id' => $client->id, 'error' => $e->getMessage()]);
+
+            return false;
+        }
     }
 
     /**

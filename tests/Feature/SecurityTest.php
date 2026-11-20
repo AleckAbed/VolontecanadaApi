@@ -94,6 +94,7 @@ class SecurityTest extends TestCase
 
     public function test_un_nouveau_cabinet_exige_la_double_authentification(): void
     {
+        config(['security.cabinet_self_signup' => true]);
         $register = fn (string $email) => $this->postJson('/api/cabinets/register', [
             'cabinet_name' => 'Cabinet ' . $email, 'province' => 'QC', 'name' => 'Propriétaire',
             'email' => $email, 'password' => 'Secret#2026x-Long', 'password_confirmation' => 'Secret#2026x-Long', 'accept_terms' => true,

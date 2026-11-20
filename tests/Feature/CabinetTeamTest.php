@@ -37,6 +37,8 @@ class CabinetTeamTest extends TestCase
 
         $this->cabinet = Cabinet::firstOrFail();
         $this->owner = $this->makeAdmin('owner', 'owner@example.test');
+        // Ces tests couvrent l'inscription libre (désactivée par défaut, voir CabinetRequestTest).
+        config(['security.cabinet_self_signup' => true]);
     }
 
     private function makeAdmin(string $role, string $email, ?Cabinet $cabinet = null): Admin

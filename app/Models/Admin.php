@@ -59,6 +59,7 @@ class Admin extends Authenticatable
             'password' => 'hashed',
             'is_active' => 'boolean',
             'lock_screen_backgrounds' => 'array',
+            'module_access' => 'array',
             'lock_screen_interval' => 'integer',
             'access_token_expires_at' => 'datetime',
             'last_login_at' => 'datetime',

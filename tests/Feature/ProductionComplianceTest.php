@@ -207,7 +207,10 @@ class ProductionComplianceTest extends TestCase
         $this->assertCount(1, $json['dossiers']);
         $this->assertSame('PDF passeport', $zip->getFromName('fichiers/dossiers/passeport.pdf'));
         $this->assertSame('PDF rempli', $zip->getFromName('fichiers/formulaires/IMM 0008.pdf'));
-        $this->assertSame(4 + 0, $zip->numFiles); // json, lisez-moi, 2 fichiers : rien de l'autre client
+        $html = $zip->getFromName('mes-donnees.html');
+        $this->assertStringContainsString('Vos renseignements personnels', $html);
+        $this->assertStringContainsString('Dossiers', $html);
+        $this->assertSame(5, $zip->numFiles); // json, html, lisez-moi, 2 fichiers : rien de l'autre client
         $zip->close();
         @unlink($zipPath);
     }

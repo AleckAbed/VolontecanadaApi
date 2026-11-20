@@ -23,9 +23,12 @@ use Illuminate\Support\Str;
 class CabinetProvisioner
 {
     /**
+     * Sans mot de passe ($ownerPassword null), le propriétaire est créé « invité » :
+     * il choisit son mot de passe via le lien d'activation (ouverture sur demande).
+     *
      * @return array{0: Cabinet, 1: Admin}
      */
-    public function create(string $cabinetName, ?string $province, string $ownerName, string $ownerEmail, string $ownerPassword): array
+    public function create(string $cabinetName, ?string $province, string $ownerName, string $ownerEmail, ?string $ownerPassword): array
     {
         return DB::transaction(function () use ($cabinetName, $province, $ownerName, $ownerEmail, $ownerPassword) {
             $cabinet = Cabinet::create([

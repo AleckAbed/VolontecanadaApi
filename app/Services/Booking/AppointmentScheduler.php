@@ -60,6 +60,8 @@ class AppointmentScheduler
                     'email' => $attendee['email'],
                     'phone' => $attendee['phone'] ?? null,
                     'password' => null,
+                    // Langue de la page de réservation : ses courriels partiront dans cette langue.
+                    'preferred_locale' => in_array(app()->getLocale(), ['fr', 'en', 'es'], true) ? app()->getLocale() : 'fr',
                 ]);
             }
 

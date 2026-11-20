@@ -16,6 +16,7 @@ return [
         'server' => 'Erreur serveur',
     ],
     'auth' => [
+        'unauthenticated' => 'Votre session a expiré. Reconnectez-vous.',
         'login_success' => 'Connexion réussie',
         'logout_success' => 'Déconnexion réussie',
         'wrong_credentials' => 'Identifiants incorrects',

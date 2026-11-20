@@ -15,7 +15,7 @@ class DocumentInvitation extends QueuedMail
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Document à remplir — ' . $this->documentRequest->template?->name,
+            subject: __('emails.document.subject', ['document' => $this->documentRequest->template?->name ?? '']),
         );
     }
 

@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 /**
  * Inscription d'un nouveau cabinet sur la plateforme (route publique).
  * Le propriétaire est connecté immédiatement après la création.
+ * Désactivée par défaut (security.cabinet_self_signup) : voir CabinetRequestController.
  */
 class CabinetRegistrationController extends Controller
 {
@@ -19,6 +20,15 @@ class CabinetRegistrationController extends Controller
 
     public function register(Request $request, CabinetProvisioner $provisioner, AdminAuthController $auth)
     {
+        // Ouverture sur demande par défaut (POST /api/cabinet-requests).
+        if (! config('security.cabinet_self_signup')) {
+            return response()->json([
+                'success' => false,
+                'code' => 'self_signup_disabled',
+                'message' => 'Les nouveaux cabinets s’ouvrent sur demande : remplissez le formulaire de demande d’ouverture.',
+            ], 403);
+        }
+
         $data = $request->validate([
             'cabinet_name' => 'required|string|max:150',
             'province' => 'nullable|string|in:' . implode(',', self::PROVINCES),

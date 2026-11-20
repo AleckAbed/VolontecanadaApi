@@ -59,8 +59,15 @@ class ClientDataExporter
             throw new RuntimeException('Impossible de créer l’archive.');
         }
         $zip->addFromString('mes-donnees.json', json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+        // Version lisible par une personne (ouvrir dans un navigateur, imprimer en PDF au besoin).
+        $zip->addFromString('mes-donnees.html', view('exports.client-data', [
+            'data' => json_decode(json_encode($data), true),
+            'cabinet' => \App\Models\Cabinet::find($client->cabinet_id)?->name,
+            'date' => now()->format('d/m/Y à H:i'),
+        ])->render());
         $zip->addFromString('LISEZ-MOI.txt', "Copie de vos renseignements personnels détenus par le cabinet.\n"
-            . "mes-donnees.json : vos informations, dossiers, questionnaires, rendez-vous, mandats et factures.\n"
+            . "mes-donnees.html : la version lisible, à ouvrir dans votre navigateur (vous pouvez l'imprimer en PDF).\n"
+            . "mes-donnees.json : les mêmes informations en format structuré (portabilité vers un autre service).\n"
             . "fichiers/ : les documents que vous avez transmis et les formulaires remplis vous concernant.\n");
 
         $files = collect()

@@ -37,6 +37,7 @@ class Cabinet extends Model
         'stripe_charges_enabled' => 'boolean',
         'subscribed_seats' => 'integer',
         'next_invoice_number' => 'integer',
+        'module_access' => 'array',
     ];
 
     protected $hidden = ['stripe_customer_id', 'stripe_subscription_id', 'stripe_account_id'];

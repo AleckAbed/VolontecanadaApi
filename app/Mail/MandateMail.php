@@ -14,11 +14,9 @@ class MandateMail extends QueuedMail
 
     public function envelope(): Envelope
     {
-        $cabinet = $this->cabinet?->name ?? 'Votre cabinet';
+        $cabinet = $this->cabinet?->name ?? __('emails.immigration_firm');
 
-        return new Envelope(
-            subject: $this->signedCopy ? "Copie de votre mandat signé — {$cabinet}" : "Mandat à signer — {$cabinet}",
-        );
+        return new Envelope(subject: __($this->signedCopy ? 'emails.mandate.copy_subject' : 'emails.mandate.subject', ['cabinet' => $cabinet]));
     }
 
     public function content(): Content

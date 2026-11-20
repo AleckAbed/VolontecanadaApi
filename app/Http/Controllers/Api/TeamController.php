@@ -7,6 +7,7 @@ use App\Mail\TeamInvitationMail;
 use App\Models\Admin;
 use App\Models\Cabinet;
 use App\Support\AdminAccessTokens;
+use App\Support\Modules;
 use App\Support\Roles;
 use App\Support\Tenancy\CurrentCabinet;
 use Illuminate\Http\Request;
@@ -197,4 +198,61 @@ class TeamController extends Controller
     {
         return response()->json(['success' => false, 'message' => $message], 403);
     }
+
+    // ─── Menus ouverts aux membres (S21) ─────────────────────────────────────
+
+    public function moduleAccess()
+    {
+        $cabinet = Cabinet::findOrFail(CurrentCabinet::require());
+        $roles = (array) ($cabinet->module_access ?? []);
+
+        return response()->json(['success' => true, 'data' => [
+            'modules' => Modules::catalog(),
+            'roles' => collect(Modules::CONFIGURABLE_ROLES)->map(fn ($r) => [
+                'value' => $r,
+                'label' => Roles::label($r),
+                'modules' => array_merge(array_fill_keys(array_keys(Modules::ALL), true), Modules::clean($roles[$r] ?? [])),
+            ])->values(),
+            'members' => Admin::whereIn('role', Modules::CONFIGURABLE_ROLES)->orderBy('name')->get()->map(fn (Admin $a) => [
+                'id' => $a->id,
+                'name' => $a->name,
+                'role' => $a->role,
+                'role_label' => Roles::label($a->role),
+                'overrides' => Modules::clean($a->module_access ?? []),
+                'effective' => Modules::effective($a, $cabinet),
+            ])->values(),
+        ]]);
+    }
+
+    /** Réglage par rôle : { roles: { advisor: { invoices: false, ... }, assistant: {...} } } */
+    public function updateRoleModules(Request $request)
+    {
+        $data = $request->validate(['roles' => 'required|array']);
+        $cabinet = Cabinet::findOrFail(CurrentCabinet::require());
+        $clean = [];
+        foreach (Modules::CONFIGURABLE_ROLES as $role) {
+            // Ne garde que ce qui est fermé : « ouvert » est la valeur par défaut.
+            $clean[$role] = array_filter(Modules::clean($data['roles'][$role] ?? []), fn ($v) => $v === false);
+        }
+        $cabinet->forceFill(['module_access' => $clean])->save();
+        \App\Support\Audit::log('module_access_updated', 'cabinet', $cabinet->id, ['roles' => $clean]);
+
+        return response()->json(['success' => true, 'message' => 'Menus des rôles enregistrés.']);
+    }
+
+    /** Réglage d'un membre : { overrides: { invoices: true } } ; null ou {} = suivre son rôle. */
+    public function updateMemberModules(Request $request, int $id)
+    {
+        $data = $request->validate(['overrides' => 'nullable|array']);
+        $member = Admin::findOrFail($id);
+        if (! in_array($member->role, Modules::CONFIGURABLE_ROLES, true)) {
+            return $this->forbidden('Les propriétaires et administrateurs voient toujours tous les menus.');
+        }
+        $overrides = Modules::clean($data['overrides'] ?? []);
+        $member->forceFill(['module_access' => $overrides ?: null])->save();
+        \App\Support\Audit::log('module_access_updated', 'admin', $member->id, ['overrides' => $overrides]);
+
+        return response()->json(['success' => true, 'message' => "Menus de {$member->name} enregistrés.", 'data' => ['effective' => Modules::effective($member)]]);
+    }
+
 }

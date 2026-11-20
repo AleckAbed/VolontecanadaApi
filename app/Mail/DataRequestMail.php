@@ -13,7 +13,7 @@ class DataRequestMail extends QueuedMail
 
     public function envelope(): Envelope
     {
-        return new Envelope(subject: "Votre demande de suppression de données — {$this->cabinetName}");
+        return new Envelope(subject: __('emails.data_request.subject', ['cabinet' => $this->cabinetName]));
     }
 
     public function content(): Content
