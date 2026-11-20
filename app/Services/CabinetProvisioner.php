@@ -37,6 +37,8 @@ class CabinetProvisioner
             // Période d'essai gratuite (SUBSCRIPTION_TRIAL_DAYS, 30 jours par défaut).
             $cabinet->forceFill([
                 'subscription_status' => 'trialing',
+                // Double authentification exigée d'emblée pour le personnel (désactivable par le cabinet).
+                'require_two_factor' => (bool) config('security.two_factor_default'),
                 'trial_ends_at' => now()->addDays((int) config('services.stripe.trial_days', 30)),
             ])->save();
 

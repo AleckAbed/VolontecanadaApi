@@ -27,7 +27,8 @@ class CollaboratorAuthController extends Controller
     private function buildAuthCookie(string $token): Cookie
     {
         $isSecure = request()->isSecure();
-        $sameSite = env('AUTH_COOKIE_SAMESITE', $isSecure ? 'none' : 'lax');
+        // « lax » : le front et l'API sont sur le même site ; « none » ouvrirait la porte aux requêtes forgées (CSRF).
+        $sameSite = env('AUTH_COOKIE_SAMESITE', 'lax');
 
         return cookie(
             self::AUTH_COOKIE_NAME,
