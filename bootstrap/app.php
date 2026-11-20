@@ -18,6 +18,11 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\SetLocale::class,
             \App\Http\Middleware\AuthCookieToBearer::class,
         ]);
+        // Sécurité : en-têtes sur chaque réponse, antivirus sur chaque fichier reçu.
+        $middleware->api(append: [
+            \App\Http\Middleware\SecurityHeaders::class,
+            \App\Http\Middleware\ScanUploads::class,
+        ]);
 
         // Multi-cabinets : voir app/Support/Tenancy.
         $middleware->alias([

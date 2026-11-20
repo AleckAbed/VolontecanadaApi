@@ -7,11 +7,10 @@ use Symfony\Component\HttpFoundation\Cookie;
 /**
  * Cookie HttpOnly qui transporte le jeton Sanctum (illisible par le JavaScript).
  *
- * SameSite :
- *  - 'lax' en local (HTTP) ou même origine ;
- *  - 'none' en production si l'API et le front sont sur des domaines différents
- *    (SameSite=None exige Secure, donc HTTPS).
- * Configurable via .env : AUTH_COOKIE_SAMESITE=none|lax|strict
+ * SameSite : 'lax' par défaut, en local comme en production (front et API sur le même domaine,
+ * ex. app.domaine.ca et api.domaine.ca). 'none' seulement si le front et l'API sont sur des
+ * domaines différents : il exige HTTPS et expose aux requêtes forgées depuis un autre site (CSRF).
+ * Configurable via .env : AUTH_COOKIE_SAMESITE=lax|strict|none
  */
 trait IssuesAuthCookie
 {
@@ -23,7 +22,8 @@ trait IssuesAuthCookie
     protected function buildAuthCookie(string $token, string $name = 'auth_token'): Cookie
     {
         $isSecure = request()->isSecure();
-        $sameSite = env('AUTH_COOKIE_SAMESITE', $isSecure ? 'none' : 'lax');
+        // « lax » : le front et l'API sont sur le même site ; « none » ouvrirait la porte aux requêtes forgées (CSRF).
+        $sameSite = env('AUTH_COOKIE_SAMESITE', 'lax');
 
         return cookie(
             $name,
