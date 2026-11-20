@@ -16,16 +16,10 @@ class AppointmentMail extends QueuedMail
 
     public function envelope(): Envelope
     {
-        $cabinet = $this->cabinet?->name ?? 'Votre cabinet';
+        $cabinet = $this->cabinet?->name ?? __('emails.immigration_firm');
+        $when = $this->localStart()->locale(self::carbonLocale())->isoFormat(self::shortFormat());
 
-        return new Envelope(
-            subject: match ($this->kind) {
-                'cancelled' => "Rendez-vous annulé — {$cabinet}",
-                'rescheduled' => "Rendez-vous déplacé au {$this->localStart()->locale('fr_CA')->isoFormat('D MMMM [à] HH:mm')} — {$cabinet}",
-                'reminder' => "Rappel : rendez-vous le {$this->localStart()->locale('fr_CA')->isoFormat('D MMMM [à] HH:mm')} — {$cabinet}",
-                default => "Rendez-vous confirmé le {$this->localStart()->locale('fr_CA')->isoFormat('D MMMM [à] HH:mm')} — {$cabinet}",
-            },
-        );
+        return new Envelope(subject: __('emails.appointment.subject_' . $this->kindKey(), ['when' => $when, 'cabinet' => $cabinet]));
     }
 
     public function content(): Content
@@ -36,11 +30,12 @@ class AppointmentMail extends QueuedMail
             view: 'emails.appointment',
             with: [
                 'appointment' => $this->appointment,
-                'cabinetName' => $this->cabinet?->name ?? 'Votre cabinet',
-                'serviceName' => $service?->name ?? 'Rendez-vous',
-                'when' => $this->localStart()->locale('fr_CA')->isoFormat('dddd D MMMM YYYY [à] HH:mm'),
+                'cabinetName' => $this->cabinet?->name ?? __('emails.immigration_firm'),
+                'serviceName' => $service?->name ?? __('emails.appointment.default_service'),
+                'when' => $this->localStart()->locale(self::carbonLocale())->isoFormat(self::longFormat()),
                 'timezone' => $this->cabinet?->timezone ?? 'America/Toronto',
-                'modeLabel' => BookingService::MEETING_MODES[$this->appointment->meeting_mode] ?? '',
+                'modeLabel' => $this->appointment->meeting_mode ? __('emails.appointment.mode_' . $this->appointment->meeting_mode) : '',
+                'kind' => $this->kindKey(),
                 'location' => $service?->location,
                 'isCancelled' => $this->kind === 'cancelled',
                 'isReminder' => $this->kind === 'reminder',
@@ -57,6 +52,27 @@ class AppointmentMail extends QueuedMail
         }
 
         return [Attachment::fromData(fn () => $this->ics(), 'rendez-vous.ics')->withMime('text/calendar; charset=utf-8; method=REQUEST')];
+    }
+
+    /** confirmed | rescheduled | reminder | cancelled */
+    private function kindKey(): string
+    {
+        return in_array($this->kind, ['rescheduled', 'reminder', 'cancelled'], true) ? $this->kind : 'confirmed';
+    }
+
+    private static function carbonLocale(): string
+    {
+        return ['fr' => 'fr_CA', 'en' => 'en_CA', 'es' => 'es'][app()->getLocale()] ?? 'fr_CA';
+    }
+
+    private static function shortFormat(): string
+    {
+        return ['en' => 'MMMM D [at] h:mm A', 'es' => 'D [de] MMMM [a las] HH:mm'][app()->getLocale()] ?? 'D MMMM [à] HH:mm';
+    }
+
+    private static function longFormat(): string
+    {
+        return ['en' => 'dddd, MMMM D, YYYY [at] h:mm A', 'es' => 'dddd D [de] MMMM [de] YYYY [a las] HH:mm'][app()->getLocale()] ?? 'dddd D MMMM YYYY [à] HH:mm';
     }
 
     private function localStart()

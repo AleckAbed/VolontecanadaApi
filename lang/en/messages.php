@@ -16,6 +16,7 @@ return [
         'server' => 'Server error',
     ],
     'auth' => [
+        'unauthenticated' => 'Your session has expired. Please sign in again.',
         'login_success' => 'Login successful',
         'logout_success' => 'Logout successful',
         'wrong_credentials' => 'Wrong credentials',

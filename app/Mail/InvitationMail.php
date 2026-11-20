@@ -13,7 +13,7 @@ class InvitationMail extends QueuedMail
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Invitation à compléter vos formulaires et documents',
+            subject: __('emails.envoi.subject', ['cabinet' => \App\Models\Cabinet::find($this->invitation->cabinet_id)?->name ?? __('emails.immigration_firm')]),
         );
     }
 

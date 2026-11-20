@@ -34,6 +34,38 @@ abstract class QueuedMail extends Mailable implements ShouldQueueAfterCommit, Sh
     /** @var array<int, int> secondes avant le 2e puis le 3e essai */
     public array $backoff = [60, 300];
 
+    /**
+     * Langue du courriel : celle du client concerné (Client::preferred_locale) quand le
+     * courriel le vise, sinon la langue par défaut. Fixée au moment de l'envoi réel (aussi
+     * depuis la file d'attente) : sujet, textes et dates suivent.
+     */
+    public function send($mailer)
+    {
+        if (! $this->locale) {
+            $this->locale = $this->recipientLocale();
+        }
+
+        return parent::send($mailer);
+    }
+
+    private function recipientLocale(): string
+    {
+        foreach ((new \ReflectionObject($this))->getProperties(\ReflectionProperty::IS_PUBLIC) as $prop) {
+            $value = $prop->getValue($this);
+            if ($value instanceof \App\Models\Client) {
+                return $value->preferredLocale();
+            }
+            if ($value instanceof \Illuminate\Database\Eloquent\Model && $value->getAttribute('client_id')) {
+                $client = \App\Support\Tenancy\CurrentCabinet::withoutScope(fn () => \App\Models\Client::acrossCabinets()->find($value->getAttribute('client_id')));
+                if ($client) {
+                    return $client->preferredLocale();
+                }
+            }
+        }
+
+        return (string) config('app.locale', 'fr');
+    }
+
     public function buildViewData()
     {
         $data = parent::buildViewData();

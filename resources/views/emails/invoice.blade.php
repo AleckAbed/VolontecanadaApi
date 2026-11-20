@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="{{ app()->getLocale() }}">
 <head>
     <meta charset="UTF-8">
     <title>{{ $isReceipt ? 'Reçu' : 'Facture' }} {{ $invoice->number }} — {{ $cabinetName }}</title>
@@ -20,20 +20,17 @@
     <div class="header">
         @include('emails.partials.logo')
         <h1 style="margin:0;font-size:22px">{{ $cabinetName }}</h1>
-        <p style="margin:6px 0 0;opacity:.9">{{ $isReceipt ? 'Reçu de paiement' : 'Facture' }} n° {{ $invoice->number }}</p>
+        <p style="margin:6px 0 0;opacity:.9">{{ $isReceipt ? __('emails.invoice.receipt_title', ['number' => $invoice->number]) : __('emails.invoice.title', ['number' => $invoice->number]) }}</p>
     </div>
 
     <div class="content">
-        <p>Bonjour <strong>{{ $invoice->client?->first_name }} {{ $invoice->client?->last_name }}</strong>,</p>
+        <p>{!! __('emails.hello', ['name' => '<strong>' . e(trim(($invoice->client?->first_name ?? '') . ' ' . ($invoice->client?->last_name ?? ''))) . '</strong>']) !!}</p>
 
         @if ($isReceipt)
-            <div class="paid">
-                Merci ! Nous avons bien reçu votre paiement de <strong>{{ $money($invoice->total_cents) }}</strong>
-                le {{ $invoice->paid_at?->format('Y-m-d') }}.
-            </div>
+            <div class="paid">{{ __('emails.invoice.thanks', ['amount' => $money($invoice->total_cents), 'date' => $invoice->paid_at?->format('Y-m-d')]) }}</div>
         @else
-            <p>Voici votre facture de <strong>{{ $cabinetName }}</strong>.
-                @if ($invoice->due_date) Elle est payable au plus tard le <strong>{{ $invoice->due_date->format('Y-m-d') }}</strong>. @endif
+            <p>{{ __('emails.invoice.intro', ['cabinet' => $cabinetName]) }}
+                @if ($invoice->due_date) {{ __('emails.invoice.due', ['date' => $invoice->due_date->format('Y-m-d')]) }} @endif
             </p>
         @endif
 
@@ -44,21 +41,21 @@
                     <td class="amount">{{ $money($line->amount_cents) }}</td>
                 </tr>
             @endforeach
-            <tr><td>Sous-total</td><td class="amount">{{ $money($invoice->subtotal_cents) }}</td></tr>
+            <tr><td>{{ __('emails.invoice.subtotal') }}</td><td class="amount">{{ $money($invoice->subtotal_cents) }}</td></tr>
             @foreach ($invoice->tax_lines ?? [] as $tax)
                 <tr><td>{{ $tax['name'] }} ({{ rtrim(rtrim(number_format($tax['rate'], 3, ',', ''), '0'), ',') }} %)</td><td class="amount">{{ $money($tax['amount_cents']) }}</td></tr>
             @endforeach
-            <tr class="total"><td>Total</td><td class="amount">{{ $money($invoice->total_cents) }}</td></tr>
+            <tr class="total"><td>{{ __('emails.invoice.total') }}</td><td class="amount">{{ $money($invoice->total_cents) }}</td></tr>
         </table>
 
         <p style="text-align:center;margin:24px 0 8px">
-            <a href="{{ $url }}" class="button">{{ $isReceipt ? 'Voir mon reçu' : 'Voir et payer ma facture' }}</a>
+            <a href="{{ $url }}" class="button">{{ $isReceipt ? __('emails.invoice.receipt_button') : __('emails.invoice.button') }}</a>
         </p>
     </div>
 
     <div class="footer">
         {{ $cabinetName }}<br>
-        Pour toute question sur cette facture, répondez à votre conseiller.
+        {{ __('emails.invoice.footer') }}
     </div>
 </body>
 </html>

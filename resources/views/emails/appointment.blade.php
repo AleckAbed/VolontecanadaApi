@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="{{ app()->getLocale() }}">
 <head>
     <meta charset="UTF-8">
     <title>{{ $isCancelled ? 'Rendez-vous annulé' : ($isReminder ? 'Rappel de rendez-vous' : ($isRescheduled ? 'Rendez-vous déplacé' : 'Rendez-vous confirmé')) }} — {{ $cabinetName }}</title>
@@ -17,19 +17,19 @@
     <div class="header">
         @include('emails.partials.logo')
         <h1 style="margin:0;font-size:22px">{{ $cabinetName }}</h1>
-        <p style="margin:6px 0 0;opacity:.9">{{ $isCancelled ? 'Rendez-vous annulé' : ($isReminder ? 'Rappel de rendez-vous' : ($isRescheduled ? 'Rendez-vous déplacé' : 'Rendez-vous confirmé')) }}</p>
+        <p style="margin:6px 0 0;opacity:.9">{{ __('emails.appointment.title_' . $kind) }}</p>
     </div>
 
     <div class="content">
-        <p>Bonjour <strong>{{ $appointment->name }}</strong>,</p>
+        <p>{!! __('emails.hello', ['name' => '<strong>' . e($appointment->name) . '</strong>']) !!}</p>
 
         <div class="card {{ $isCancelled ? 'cancelled' : '' }}">
             <strong>{{ $serviceName }}</strong><br>
-            {{ ucfirst($when) }} <span style="color:#64748b;font-size:12px">({{ $timezone }})</span><br>
+            {{ \Illuminate\Support\Str::ucfirst($when) }} <span style="color:#64748b;font-size:12px">({{ $timezone }})</span><br>
             @if (! $isCancelled)
                 {{ $modeLabel }}
                 @if ($appointment->meeting_url)
-                    — <a href="{{ $appointment->meeting_url }}">rejoindre la rencontre</a>
+                    — <a href="{{ $appointment->meeting_url }}">{{ __('emails.appointment.join') }}</a>
                 @elseif ($location)
                     — {{ $location }}
                 @endif
@@ -37,28 +37,21 @@
         </div>
 
         @if ($isCancelled)
-            <p>Ce rendez-vous est annulé. Vous pouvez en réserver un autre à tout moment.</p>
+            <p>{{ __('emails.appointment.cancelled_text') }}</p>
         @else
-            @if ($isReminder)
-            <p>Nous vous rappelons votre rendez-vous ci-dessus.
-            @elseif ($isRescheduled)
-            <p>Votre rendez-vous a été déplacé à la date ci-dessus. L’invitation jointe (fichier .ics) met à jour votre agenda.
-            @else
-            <p>L’invitation jointe (fichier .ics) l’ajoute à votre agenda en un clic.
-            @endif
-                @if ($appointment->meeting_mode === 'video' && ! $appointment->meeting_url)
-                    Le lien de la visioconférence vous sera transmis par votre conseiller.
-                @endif
+            <p>
+                @if ($isReminder){{ __('emails.appointment.reminder_text') }}@elseif ($isRescheduled){{ __('emails.appointment.rescheduled_text') }}@else{{ __('emails.appointment.confirmed_text') }}@endif
+                @if ($appointment->meeting_mode === 'video' && ! $appointment->meeting_url) {{ __('emails.appointment.video_later') }} @endif
             </p>
             <p style="text-align:center;margin:24px 0 8px">
-                <a href="{{ $manageUrl }}" class="button">Voir ou annuler le rendez-vous</a>
+                <a href="{{ $manageUrl }}" class="button">{{ __('emails.appointment.button') }}</a>
             </p>
         @endif
     </div>
 
     <div class="footer">
         {{ $cabinetName }}<br>
-        Ce courriel vous a été envoyé automatiquement à la suite de votre réservation.
+        {{ __('emails.appointment.footer') }}
     </div>
 </body>
 </html>

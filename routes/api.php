@@ -77,10 +77,11 @@ Route::prefix('admin')->group(function () {
         Route::post('/password/forgot', [AdminAccessController::class, 'forgotPassword']);
         Route::post('/access/check', [AdminAccessController::class, 'check']);
         Route::post('/access/complete', [AdminAccessController::class, 'complete']);
+        Route::post('/access/two-factor/setup', [AdminAccessController::class, 'twoFactorSetup']);
     });
 
     // Routes protégées pour les admins
-    Route::middleware(['auth:admin', 'cabinet', 'two-factor', 'audit'])->group(function () {
+    Route::middleware(['auth:admin', 'cabinet', 'two-factor', 'modules', 'audit'])->group(function () {
         Route::post('/logout', [AdminAuthController::class, 'logout']);
         Route::get('/me', [AdminAuthController::class, 'me']);
 
@@ -200,8 +201,12 @@ Route::prefix('admin')->group(function () {
         Route::middleware('role:owner,admin')->group(function () {
             Route::get('/team', [TeamController::class, 'index']);
             Route::post('/team', [TeamController::class, 'store']);
-            Route::put('/team/{id}', [TeamController::class, 'update']);
+            Route::put('/team/{id}', [TeamController::class, 'update'])->whereNumber('id');
             Route::post('/team/{id}/resend-invitation', [TeamController::class, 'resendInvitation']);
+            // Menus ouverts ou masqués aux membres (par rôle, puis par membre)
+            Route::get('/team/module-access', [TeamController::class, 'moduleAccess']);
+            Route::put('/team/module-access', [TeamController::class, 'updateRoleModules']);
+            Route::put('/team/{id}/module-access', [TeamController::class, 'updateMemberModules']);
         });
         // Vérification du mot de passe sans rotation de token — utilisé par le
         // lock screen pour confirmer l'identité du même admin connecté.
@@ -403,6 +408,8 @@ foreach (['invitation', 'questionnaire', 'document', 'activation'] as $type) {
 
 // Inscription d'un nouveau cabinet (publique)
 Route::middleware('throttle:signup')->post('/cabinets/register', [CabinetRegistrationController::class, 'register']);
+// Demande d'ouverture de cabinet (formulaire public / site vitrine), étudiée par la plateforme
+Route::middleware('throttle:signup')->post('/cabinet-requests', [\App\Http\Controllers\Api\CabinetRequestController::class, 'store']);
 
 // Console de l'éditeur de la plateforme (super-admin)
 Route::prefix('platform')->group(function () {
@@ -413,6 +420,10 @@ Route::prefix('platform')->group(function () {
         Route::post('/logout', [PlatformAuthController::class, 'logout']);
         Route::get('/cabinets', [PlatformCabinetController::class, 'index']);
         Route::patch('/cabinets/{id}', [PlatformCabinetController::class, 'update']);
+        // Demandes d'ouverture de cabinet
+        Route::get('/cabinet-requests', [\App\Http\Controllers\Api\Platform\PlatformCabinetRequestController::class, 'index']);
+        Route::post('/cabinet-requests/{id}/approve', [\App\Http\Controllers\Api\Platform\PlatformCabinetRequestController::class, 'approve']);
+        Route::post('/cabinet-requests/{id}/decline', [\App\Http\Controllers\Api\Platform\PlatformCabinetRequestController::class, 'decline']);
         // Catalogue de modèles partagé
         Route::get('/catalog', [PlatformCatalogController::class, 'index']);
         Route::get('/cabinets/{id}/templates', [PlatformCatalogController::class, 'cabinetTemplates']);

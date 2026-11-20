@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="{{ app()->getLocale() }}">
 <head>
     <meta charset="UTF-8">
-    <title>{{ $isInvite ? 'Votre portail client' : 'Réinitialisation du mot de passe' }} — {{ $cabinetName }}</title>
+    <title>{{ __('emails.portal.' . $mode . '_title') }} — {{ $cabinetName }}</title>
     <style>
         body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 620px; margin: 0 auto; padding: 20px; background-color: #fafafa; }
         .header { background: linear-gradient(135deg, {{ $brand['color'] }} 0%, {{ $brand['color_dark'] }} 100%); color: white; padding: 28px; text-align: center; border-radius: 8px 8px 0 0; }
@@ -17,42 +17,44 @@
     <div class="header">
         @include('emails.partials.logo')
         <h1 style="margin:0">{{ $cabinetName }}</h1>
-        <p style="margin:6px 0 0;opacity:.9">{{ $isInvite ? 'Votre portail client' : 'Réinitialisation du mot de passe' }}</p>
+        <p style="margin:6px 0 0;opacity:.9">{{ __('emails.portal.' . $mode . '_title') }}</p>
     </div>
 
     <div class="content">
-        <p>Bonjour <strong>{{ $client->first_name }} {{ $client->last_name }}</strong>,</p>
+        <p>{!! __('emails.hello', ['name' => '<strong>' . e($client->first_name . ' ' . $client->last_name) . '</strong>']) !!}</p>
 
-        @if ($isInvite)
-            <p><strong>{{ $cabinetName }}</strong> vous ouvre un portail personnel pour suivre votre dossier d'immigration.</p>
-            <div class="info">
-                Vous y retrouverez vos dossiers, les formulaires et documents à compléter, et votre profil.
-                <strong>Vous ne répondez qu'une fois</strong> : vos informations servent ensuite à préremplir vos formulaires.
-            </div>
-            <p>Pour activer votre accès, choisissez votre mot de passe :</p>
+        @if ($mode === 'invite')
+            <p>{{ __('emails.portal.invite_intro', ['cabinet' => $cabinetName]) }}</p>
+            <div class="info">{{ __('emails.portal.invite_info') }}</div>
+            <p>{{ __('emails.portal.invite_cta') }}</p>
+        @elseif ($mode === 'reminder')
+            <p>{{ __('emails.portal.reminder_intro', ['cabinet' => $cabinetName]) }}</p>
         @else
-            <p>Pour choisir un nouveau mot de passe pour votre portail client :</p>
+            <p>{{ __('emails.portal.reset_intro') }}</p>
         @endif
 
         <p style="text-align:center;margin:24px 0">
-            <a href="{{ $actionUrl }}" class="button">{{ $isInvite ? 'Activer mon portail' : 'Choisir un nouveau mot de passe' }}</a>
+            <a href="{{ $actionUrl }}" class="button">{{ __('emails.portal.' . $mode . '_button') }}</a>
         </p>
 
         <p style="font-size:13px;color:#64748b;text-align:center;word-break:break-all">
-            Ou copiez ce lien dans votre navigateur :<br>
-            <span style="color:{{ $brand['color'] }}">{{ $actionUrl }}</span>
+            {{ __('emails.copy_link') }}<br>
+            <a href="{{ $actionUrl }}" style="color:{{ $brand['color'] }}">{{ $actionUrl }}</a>
         </p>
 
-        <div class="warning">
-            <strong>Important :</strong> ce lien expire dans <strong>{{ $isInvite ? '7 jours' : '1 heure' }}</strong> et ne fonctionne qu'une fois.
-        </div>
-
-        <p style="font-size:13px;color:#64748b">Ensuite, connectez-vous ici : <a href="{{ $loginUrl }}" style="color:{{ $brand['color'] }}">{{ $loginUrl }}</a></p>
+        @if ($mode === 'reminder')
+            <p style="font-size:13px;color:#64748b">{{ __('emails.portal.reminder_note') }}</p>
+        @else
+            <div class="warning">
+                <strong>{{ __('emails.important') }}</strong> {{ __('emails.portal.' . $mode . '_expires') }}
+            </div>
+            <p style="font-size:13px;color:#64748b">{{ __('emails.portal.then_login') }} <a href="{{ $loginUrl }}" style="color:{{ $brand['color'] }}">{{ $loginUrl }}</a></p>
+        @endif
     </div>
 
     <div class="footer">
         {{ $cabinetName }}<br>
-        Si vous n'êtes pas à l'origine de cette demande, ignorez ce courriel.
+        @if ($mode === 'reset'){{ __('emails.ignore_if_not_you') }}@else{{ __('emails.auto_no_reply') }}@endif
     </div>
 </body>
 </html>

@@ -29,4 +29,11 @@ return [
     */
     'two_factor_default' => (bool) env('SECURITY_REQUIRE_2FA_NEW_CABINETS', true),
 
+    /*
+    | Ouverture des cabinets : sur demande (formulaire public, validée dans la console
+    | plateforme) par défaut. L'inscription libre et immédiate (/api/cabinets/register)
+    | ne s'ouvre qu'avec CABINET_SELF_SIGNUP=true.
+    */
+    'cabinet_self_signup' => (bool) env('CABINET_SELF_SIGNUP', false),
+
 ];
